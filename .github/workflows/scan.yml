@@ -1,0 +1,189 @@
+name: vLLM Image Security Scan
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      max_versions:
+        description: 'Number of most recent vLLM releases to scan'
+        required: false
+        default: '10'
+      include_nightly:
+        description: 'Also scan the nightly image'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: vllm-scan
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      scan_date: ${{ steps.scan_date.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - id: discover
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/discover.py \
+            --max-versions "${{ github.event.inputs.max_versions || '10' }}" \
+            --out-dir discover-out \
+            --token "${GITHUB_TOKEN}" \
+            ${{ github.event.inputs.include_nightly == 'false' && '--no-include-nightly' || '--include-nightly' }}
+      - id: scan_date
+        run: echo "value=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: discover-output
+          path: discover-out/
+
+  scan:
+    needs: discover
+    if: fromJson(needs.discover.outputs.matrix).include[0] != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be  # v1.3.1
+        with:
+          docker-images: false
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567  # v0.3.1
+        with:
+          version: v0.74.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run scan for this matrix cell
+        env:
+          IMAGE_REPO: ${{ matrix.image_repo }}
+          VERSION: ${{ matrix.version }}
+          VARIANT: ${{ matrix.variant }}
+          GHCR_OWNER: ${{ github.repository_owner }}
+          OUT_DIR: scan-out
+          SCAN_DATE: ${{ needs.discover.outputs.scan_date }}
+        run: |
+          chmod +x scripts/scan.sh
+          ./scripts/scan.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: scan-${{ matrix.version }}-${{ matrix.variant }}
+          path: scan-out/
+
+  aggregate:
+    needs: [discover, scan]
+    # Run even when some scan matrix cells hard-failed (timeout/OOM/disk). With
+    # fail-fast: false a single failed cell makes the whole `scan` job's
+    # conclusion `failure`, which would otherwise skip this job and discard the
+    # entire day's output. Missing cells are synthesized as `job_failed` by
+    # aggregate.py's merge_with_expected, which is the whole point of that code.
+    if: ${{ !cancelled() && needs.discover.result == 'success' && fromJson(needs.discover.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: scan-*
+          path: scan-artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: discover-output
+          path: discover-artifacts
+      - name: Fetch prior published results (if any)
+        continue-on-error: true
+        run: |
+          git fetch origin gh-pages
+          git worktree add results-prev origin/gh-pages
+      - name: Seed results dir with prior history
+        run: |
+          # history.jsonl persists forever (counts only, tiny). results/reports/
+          # carries forward too, but only within its own 7-day retention window --
+          # aggregate.py prunes anything older itself, so the raw Trivy JSON
+          # (~54MB/version/day) can't accumulate past the 1GB Pages limit.
+          mkdir -p results
+          if [ -f results-prev/results/history.jsonl ]; then
+            cp results-prev/results/history.jsonl results/
+          fi
+          if [ -d results-prev/results/reports ]; then
+            cp -r results-prev/results/reports results/
+          fi
+      - name: Aggregate
+        run: |
+          python3 scripts/aggregate.py run \
+            --scan-dir scan-artifacts \
+            --expected-path discover-artifacts/expected.json \
+            --results-dir results \
+            --date "$(date -u +%Y-%m-%d)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aggregated-results
+          path: results/
+
+  publish:
+    needs: aggregate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v8
+        with:
+          name: aggregated-results
+          path: results
+      - name: Render README scan-summary block
+        run: |
+          python3 scripts/update_readme.py \
+            --summary-path results/latest/summary.json \
+            --readme-path README.md \
+            --dashboard-url "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" \
+            --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - name: Commit README
+        run: |
+          git config user.name "vllm-security-bot"
+          git config user.email "actions@github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "chore: update scan summary $(date -u +%Y-%m-%d)"
+          # Rebase onto any concurrent edit before pushing; a rejected push here
+          # would otherwise abort the job and skip the gh-pages deploy below,
+          # losing the day's dashboard even though it was computed successfully.
+          git pull --rebase origin ${{ github.event.repository.default_branch }}
+          git push origin HEAD:${{ github.event.repository.default_branch }}
+      - name: Assemble gh-pages publish directory
+        run: |
+          mkdir -p publish
+          cp -r site/. publish/
+          cp -r results publish/results
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453  # v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: publish
+          publish_branch: gh-pages
+          force_orphan: true
