@@ -41,7 +41,7 @@ main() {
   fi
 
   echo "Scanning ${IMAGE} (before)"
-  if ! trivy image --scanners vuln --timeout 60m --format json -o "${OUT_DIR}/${SAFE_NAME}-before.json" "${IMAGE}"; then
+  if ! trivy image --scanners vuln --parallel 2 --timeout 60m --format json -o "${OUT_DIR}/${SAFE_NAME}-before.json" "${IMAGE}"; then
     write_failure_summary "scan_failed"
     exit 0
   fi
@@ -64,7 +64,7 @@ EOF
   PATCHED_IMAGE=""
 
   if docker build -t "${PATCHED_LOCAL_TAG}" "${BUILD_DIR}" \
-    && trivy image --scanners vuln --timeout 60m --format json -o "${OUT_DIR}/${SAFE_NAME}-after.json" "${PATCHED_LOCAL_TAG}"; then
+    && trivy image --scanners vuln --parallel 2 --timeout 60m --format json -o "${OUT_DIR}/${SAFE_NAME}-after.json" "${PATCHED_LOCAL_TAG}"; then
     PATCHED_IMAGE="$(build_patched_image_tag "${GHCR_OWNER}" "${IMAGE_NAME}" "${VERSION}" "${SCAN_DATE}")"
     docker tag "${PATCHED_LOCAL_TAG}" "${PATCHED_IMAGE}"
     if ! docker push "${PATCHED_IMAGE}"; then
