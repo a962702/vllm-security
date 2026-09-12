@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>vLLM Image Security Scan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.11/css/jquery.dataTables.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.11/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-title">
+      <span class="eyebrow">Container Inspection Manifest</span>
+      <h1>vLLM Official Image Security Scan</h1>
+    </div>
+    <div class="stamp-plate" id="updated-at">Loading&hellip;</div>
+  </header>
+
+  <nav class="tab-bar" role="tablist">
+    <button type="button" class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+    <button type="button" class="tab" role="tab" aria-selected="false" data-tab="full-report">Full Report</button>
+  </nav>
+
+  <main>
+    <section class="tab-panel" id="panel-overview" role="tabpanel">
+      <div class="panel-block">
+        <h2>Latest Scan</h2>
+        <p class="table-note">Each severity column reads as Before &rarr; After.</p>
+        <table id="latest-table" class="ledger-table">
+          <thead>
+            <tr>
+              <th>Version</th><th>Variant</th>
+              <th title="Critical">C</th><th title="High">H</th><th title="Medium">M</th>
+              <th title="Low">L</th><th title="Unknown">U</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel-block">
+        <h2>Vulnerability Trend</h2>
+        <div id="trend-controls">
+          <label for="trend-version">Version</label>
+          <select id="trend-version"></select>
+
+          <label for="trend-variant">Variant</label>
+          <select id="trend-variant"></select>
+
+          <label for="trend-type">Type</label>
+          <select id="trend-type">
+            <option value="after">After</option>
+            <option value="before">Before</option>
+          </select>
+        </div>
+        <div class="chart-card">
+          <canvas id="trend-chart" height="120"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="panel-full-report" role="tabpanel" hidden>
+      <div class="panel-block">
+        <div id="report-controls">
+          <label for="report-date">Date</label>
+          <select id="report-date"></select>
+
+          <label for="report-combo">Version / Variant</label>
+          <select id="report-combo"></select>
+
+          <button id="report-view-btn" type="button" class="stamp-button">View Report</button>
+        </div>
+        <p id="report-status"></p>
+        <div id="report-output" hidden>
+          <table id="report-table" class="ledger-table display" style="width:100%">
+            <thead>
+              <tr>
+                <th>Severity</th><th>CVE</th><th>Package</th>
+                <th>Installed</th><th>Fixed</th><th>Title</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+:root {
+  --bg: #eceadf;
+  --surface: #fbfaf5;
+  --ink: #1b2a2e;
+  --ink-soft: #4c5c58;
+  --border: #c7c3b2;
+  --border-strong: #9d9880;
+  --accent-resolved: #2f6f4e;
+  --accent-resolved-bg: #e3ede4;
+  --accent-remaining: #ac4326;
+  --accent-remaining-bg: #f3e2da;
+  --accent-new: #93691a;
+  --accent-new-bg: #f1e6ce;
+  --sev-critical: #9c2b1f;
+  --sev-high: #ac4326;
+  --sev-medium: #93691a;
+  --sev-low: #4c6b56;
+  --sev-unknown: #6b6a63;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12181a;
+    --surface: #1a2224;
+    --ink: #e9e6db;
+    --ink-soft: #a9b0ac;
+    --border: #364240;
+    --border-strong: #4a5a56;
+    --accent-resolved: #6fbf8f;
+    --accent-resolved-bg: #1e2e26;
+    --accent-remaining: #e08363;
+    --accent-remaining-bg: #33241d;
+    --accent-new: #d9b25e;
+    --accent-new-bg: #352a15;
+    --sev-critical: #e2685a;
+    --sev-high: #e08363;
+    --sev-medium: #d9b25e;
+    --sev-low: #8fb99e;
+    --sev-unknown: #9a998f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0 0 3rem;
+}
+
+main {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+h1, h2 {
+  font-family: "Big Shoulders Display", "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--border-strong);
+  padding-bottom: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.table-note {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: -0.6rem 0 0.8rem;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 2rem 2rem 1.5rem;
+  border-bottom: 3px solid var(--ink);
+}
+
+.eyebrow {
+  display: block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.3rem;
+}
+
+.masthead h1 {
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.stamp-plate {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+  padding: 0.5rem 0.85rem;
+  letter-spacing: 0.03em;
+  transform: rotate(-1.2deg);
+  white-space: nowrap;
+}
+
+/* ---------- tabs ---------- */
+
+.tab-bar {
+  display: flex;
+  gap: 0.35rem;
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0.9rem 2rem 0;
+}
+
+.tab {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1.5px solid var(--border-strong);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  color: var(--ink-soft);
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom: 1px solid var(--surface);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent-remaining);
+  outline-offset: 2px;
+}
+
+.tab-panel {
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 0 6px 6px 6px;
+  padding: 1.75rem 2rem 2.25rem;
+}
+
+.panel-block + .panel-block {
+  margin-top: 2.5rem;
+}
+
+/* ---------- ledger tables ---------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.ledger-table thead th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--bg);
+  color: var(--ink-soft);
+}
+
+.ledger-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--ink) 3%, var(--surface));
+}
+
+.ledger-table td:nth-child(1),
+.ledger-table td:nth-child(2) {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.chart-card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--ink) 2%, var(--surface));
+}
+
+/* ---------- report controls ---------- */
+
+#report-controls,
+#trend-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.25rem 0 1rem;
+}
+
+#report-controls label,
+#trend-controls label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+#report-controls select,
+#trend-controls select {
+  font: inherit;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 0.35rem 0.5rem;
+}
+
+.stamp-button {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--surface);
+  border: none;
+  border-radius: 3px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.stamp-button:hover {
+  background: var(--ink-soft);
+}
+
+#report-status {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.sev {
+  font-weight: 600;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.sev-critical { color: var(--sev-critical); }
+.sev-high { color: var(--sev-high); }
+.sev-medium { color: var(--sev-medium); }
+.sev-low { color: var(--sev-low); }
+.sev-unknown { color: var(--sev-unknown); }
+
+/* ---------- status stamps (signature element) ---------- */
+
+.stamp {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 2px;
+  border: 1.5px solid currentColor;
+  transform: rotate(-2deg);
+}
+
+.stamp-resolved {
+  color: var(--accent-resolved);
+  background: var(--accent-resolved-bg);
+}
+
+.stamp-remaining {
+  color: var(--accent-remaining);
+  background: var(--accent-remaining-bg);
+}
+
+.stamp-new {
+  color: var(--accent-new);
+  background: var(--accent-new-bg);
+  transform: rotate(2deg);
+}
+
+/* ---------- DataTables theme overrides ---------- */
+
+.dataTables_wrapper {
+  font-family: "IBM Plex Sans", sans-serif;
+  margin-top: 1rem;
+}
+
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+  font: inherit;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 0.3rem 0.5rem;
+  margin-left: 0.4rem;
+}
+
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_info {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+table.dataTable thead th {
+  position: relative;
+  cursor: pointer;
+}
+
+table.dataTable thead th.sorting::after,
+table.dataTable thead th.sorting_asc::after,
+table.dataTable thead th.sorting_desc::after {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  margin-left: 0.4rem;
+  color: var(--ink-soft);
+}
+
+table.dataTable thead th.sorting::after { content: "\2195"; }
+table.dataTable thead th.sorting_asc::after { content: "\2191"; color: var(--ink); }
+table.dataTable thead th.sorting_desc::after { content: "\2193"; color: var(--ink); }
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  margin-left: 0.2rem;
+  border: 1.5px solid var(--border-strong) !important;
+  border-radius: 3px;
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--ink) !important;
+  color: var(--surface) !important;
+  border-color: var(--ink) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+  color: var(--border-strong) !important;
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  .masthead, .tab-bar, main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .tab-panel {
+    padding: 1.25rem 1rem 1.75rem;
+  }
+}
