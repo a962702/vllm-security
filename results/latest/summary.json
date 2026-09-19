@@ -1,0 +1,853 @@
+[
+  {
+    "version": "nightly",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:nightly",
+    "scanned_at": "2026-09-19T05:25:56Z",
+    "before": {
+      "CRITICAL": 5,
+      "HIGH": 180,
+      "MEDIUM": 3294,
+      "LOW": 326,
+      "UNKNOWN": 0,
+      "total": 3805
+    },
+    "after": {
+      "CRITICAL": 5,
+      "HIGH": 168,
+      "MEDIUM": 3248,
+      "LOW": 261,
+      "UNKNOWN": 0,
+      "total": 3682
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:nightly-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "nightly",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:nightly",
+    "scanned_at": "2026-09-19T05:05:02Z",
+    "before": {
+      "CRITICAL": 0,
+      "HIGH": 5,
+      "MEDIUM": 2,
+      "LOW": 0,
+      "UNKNOWN": 0,
+      "total": 7
+    },
+    "after": {
+      "CRITICAL": 0,
+      "HIGH": 5,
+      "MEDIUM": 2,
+      "LOW": 0,
+      "UNKNOWN": 0,
+      "total": 7
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:nightly-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "nightly",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:nightly",
+    "scanned_at": "2026-09-19T05:36:33Z",
+    "before": {
+      "CRITICAL": 28,
+      "HIGH": 331,
+      "MEDIUM": 4180,
+      "LOW": 509,
+      "UNKNOWN": 0,
+      "total": 5048
+    },
+    "after": {
+      "CRITICAL": 10,
+      "HIGH": 211,
+      "MEDIUM": 3269,
+      "LOW": 370,
+      "UNKNOWN": 0,
+      "total": 3860
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:nightly-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.29.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.29.0",
+    "scanned_at": "2026-09-19T05:11:54Z",
+    "before": {
+      "CRITICAL": 5,
+      "HIGH": 180,
+      "MEDIUM": 3350,
+      "LOW": 326,
+      "UNKNOWN": 0,
+      "total": 3861
+    },
+    "after": {
+      "CRITICAL": 5,
+      "HIGH": 168,
+      "MEDIUM": 3249,
+      "LOW": 261,
+      "UNKNOWN": 0,
+      "total": 3683
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.29.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.29.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.29.0",
+    "scanned_at": "2026-09-19T05:01:49Z",
+    "before": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3827,
+      "LOW": 334,
+      "UNKNOWN": 0,
+      "total": 4370
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3788,
+      "LOW": 323,
+      "UNKNOWN": 0,
+      "total": 4320
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.29.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.29.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.29.0",
+    "scanned_at": "2026-09-19T05:33:37Z",
+    "before": {
+      "CRITICAL": 24,
+      "HIGH": 323,
+      "MEDIUM": 4203,
+      "LOW": 506,
+      "UNKNOWN": 0,
+      "total": 5056
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3256,
+      "LOW": 367,
+      "UNKNOWN": 0,
+      "total": 3832
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.29.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.28.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.28.0",
+    "scanned_at": "2026-09-19T05:11:31Z",
+    "before": {
+      "CRITICAL": 5,
+      "HIGH": 187,
+      "MEDIUM": 3535,
+      "LOW": 333,
+      "UNKNOWN": 0,
+      "total": 4060
+    },
+    "after": {
+      "CRITICAL": 5,
+      "HIGH": 168,
+      "MEDIUM": 3249,
+      "LOW": 261,
+      "UNKNOWN": 0,
+      "total": 3683
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.28.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.28.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.28.0",
+    "scanned_at": "2026-09-19T05:07:51Z",
+    "before": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3883,
+      "LOW": 340,
+      "UNKNOWN": 0,
+      "total": 4432
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3788,
+      "LOW": 323,
+      "UNKNOWN": 0,
+      "total": 4320
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.28.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.28.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.28.0",
+    "scanned_at": "2026-09-19T05:22:10Z",
+    "before": {
+      "CRITICAL": 24,
+      "HIGH": 323,
+      "MEDIUM": 4231,
+      "LOW": 509,
+      "UNKNOWN": 0,
+      "total": 5087
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3256,
+      "LOW": 367,
+      "UNKNOWN": 0,
+      "total": 3832
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.28.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.27.1",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.27.1",
+    "scanned_at": "2026-09-19T05:12:23Z",
+    "before": {
+      "CRITICAL": 6,
+      "HIGH": 217,
+      "MEDIUM": 4002,
+      "LOW": 428,
+      "UNKNOWN": 0,
+      "total": 4653
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 201,
+      "MEDIUM": 3826,
+      "LOW": 363,
+      "UNKNOWN": 0,
+      "total": 4396
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.27.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.27.1",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.27.1",
+    "scanned_at": "2026-09-19T05:05:42Z",
+    "before": {
+      "CRITICAL": 6,
+      "HIGH": 206,
+      "MEDIUM": 3895,
+      "LOW": 340,
+      "UNKNOWN": 0,
+      "total": 4447
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 204,
+      "MEDIUM": 3791,
+      "LOW": 323,
+      "UNKNOWN": 0,
+      "total": 4324
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.27.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.27.1",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.27.1",
+    "scanned_at": "2026-09-19T05:18:19Z",
+    "before": {
+      "CRITICAL": 24,
+      "HIGH": 324,
+      "MEDIUM": 4254,
+      "LOW": 518,
+      "UNKNOWN": 0,
+      "total": 5120
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 204,
+      "MEDIUM": 3259,
+      "LOW": 377,
+      "UNKNOWN": 0,
+      "total": 3846
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.27.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.27.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.27.0",
+    "scanned_at": "2026-09-19T05:21:23Z",
+    "before": {
+      "CRITICAL": 6,
+      "HIGH": 217,
+      "MEDIUM": 4002,
+      "LOW": 428,
+      "UNKNOWN": 0,
+      "total": 4653
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 201,
+      "MEDIUM": 3826,
+      "LOW": 363,
+      "UNKNOWN": 0,
+      "total": 4396
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.27.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.27.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.27.0",
+    "scanned_at": "2026-09-19T05:01:30Z",
+    "before": {
+      "CRITICAL": 6,
+      "HIGH": 206,
+      "MEDIUM": 3895,
+      "LOW": 340,
+      "UNKNOWN": 0,
+      "total": 4447
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 204,
+      "MEDIUM": 3791,
+      "LOW": 323,
+      "UNKNOWN": 0,
+      "total": 4324
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.27.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.27.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.27.0",
+    "scanned_at": "2026-09-19T05:18:41Z",
+    "before": {
+      "CRITICAL": 24,
+      "HIGH": 324,
+      "MEDIUM": 4254,
+      "LOW": 518,
+      "UNKNOWN": 0,
+      "total": 5120
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 204,
+      "MEDIUM": 3259,
+      "LOW": 377,
+      "UNKNOWN": 0,
+      "total": 3846
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.27.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.26.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.26.0",
+    "scanned_at": "2026-09-19T05:28:06Z",
+    "before": {
+      "CRITICAL": 8,
+      "HIGH": 226,
+      "MEDIUM": 4027,
+      "LOW": 431,
+      "UNKNOWN": 0,
+      "total": 4692
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 199,
+      "MEDIUM": 3825,
+      "LOW": 364,
+      "UNKNOWN": 0,
+      "total": 4394
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.26.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.26.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.26.0",
+    "scanned_at": "2026-09-19T05:01:40Z",
+    "before": {
+      "CRITICAL": 8,
+      "HIGH": 215,
+      "MEDIUM": 3939,
+      "LOW": 348,
+      "UNKNOWN": 0,
+      "total": 4510
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 202,
+      "MEDIUM": 3792,
+      "LOW": 324,
+      "UNKNOWN": 0,
+      "total": 4324
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.26.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.26.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.26.0",
+    "scanned_at": "2026-09-19T05:17:31Z",
+    "before": {
+      "CRITICAL": 24,
+      "HIGH": 322,
+      "MEDIUM": 4254,
+      "LOW": 518,
+      "UNKNOWN": 0,
+      "total": 5118
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 202,
+      "MEDIUM": 3259,
+      "LOW": 377,
+      "UNKNOWN": 0,
+      "total": 3844
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.26.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.25.1",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.25.1",
+    "scanned_at": "2026-09-19T05:14:46Z",
+    "before": {
+      "CRITICAL": 11,
+      "HIGH": 301,
+      "MEDIUM": 4634,
+      "LOW": 522,
+      "UNKNOWN": 0,
+      "total": 5468
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 200,
+      "MEDIUM": 3834,
+      "LOW": 364,
+      "UNKNOWN": 0,
+      "total": 4404
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.25.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.25.1",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.25.1",
+    "scanned_at": "2026-09-19T05:01:53Z",
+    "before": {
+      "CRITICAL": 11,
+      "HIGH": 290,
+      "MEDIUM": 4550,
+      "LOW": 439,
+      "UNKNOWN": 0,
+      "total": 5290
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 203,
+      "MEDIUM": 3801,
+      "LOW": 324,
+      "UNKNOWN": 0,
+      "total": 4334
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.25.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.25.1",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.25.1",
+    "scanned_at": "2026-09-19T05:21:57Z",
+    "before": {
+      "CRITICAL": 24,
+      "HIGH": 333,
+      "MEDIUM": 4331,
+      "LOW": 522,
+      "UNKNOWN": 0,
+      "total": 5210
+    },
+    "after": {
+      "CRITICAL": 6,
+      "HIGH": 213,
+      "MEDIUM": 3271,
+      "LOW": 377,
+      "UNKNOWN": 0,
+      "total": 3867
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.25.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.25.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.25.0",
+    "scanned_at": "2026-09-19T05:12:16Z",
+    "before": {
+      "CRITICAL": 12,
+      "HIGH": 302,
+      "MEDIUM": 4635,
+      "LOW": 522,
+      "UNKNOWN": 0,
+      "total": 5471
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 201,
+      "MEDIUM": 3835,
+      "LOW": 364,
+      "UNKNOWN": 0,
+      "total": 4407
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.25.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.25.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.25.0",
+    "scanned_at": "2026-09-19T05:13:15Z",
+    "before": {
+      "CRITICAL": 12,
+      "HIGH": 291,
+      "MEDIUM": 4551,
+      "LOW": 439,
+      "UNKNOWN": 0,
+      "total": 5293
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 204,
+      "MEDIUM": 3802,
+      "LOW": 324,
+      "UNKNOWN": 0,
+      "total": 4337
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.25.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.25.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.25.0",
+    "scanned_at": "2026-09-19T05:17:21Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 334,
+      "MEDIUM": 4332,
+      "LOW": 522,
+      "UNKNOWN": 0,
+      "total": 5213
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 214,
+      "MEDIUM": 3272,
+      "LOW": 377,
+      "UNKNOWN": 0,
+      "total": 3870
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.25.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.24.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.24.0",
+    "scanned_at": "2026-09-19T05:20:55Z",
+    "before": {
+      "CRITICAL": 12,
+      "HIGH": 317,
+      "MEDIUM": 4702,
+      "LOW": 534,
+      "UNKNOWN": 0,
+      "total": 5565
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 216,
+      "MEDIUM": 3838,
+      "LOW": 364,
+      "UNKNOWN": 0,
+      "total": 4425
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.24.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.24.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.24.0",
+    "scanned_at": "2026-09-19T05:02:54Z",
+    "before": {
+      "CRITICAL": 12,
+      "HIGH": 304,
+      "MEDIUM": 4578,
+      "LOW": 461,
+      "UNKNOWN": 0,
+      "total": 5355
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 216,
+      "MEDIUM": 3805,
+      "LOW": 324,
+      "UNKNOWN": 0,
+      "total": 4352
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.24.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.24.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.24.0",
+    "scanned_at": "2026-09-19T05:21:35Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 343,
+      "MEDIUM": 4365,
+      "LOW": 531,
+      "UNKNOWN": 0,
+      "total": 5264
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 223,
+      "MEDIUM": 3275,
+      "LOW": 378,
+      "UNKNOWN": 0,
+      "total": 3883
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.24.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.23.0",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.23.0",
+    "scanned_at": "2026-09-19T05:18:21Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 339,
+      "MEDIUM": 4753,
+      "LOW": 542,
+      "UNKNOWN": 0,
+      "total": 5659
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 219,
+      "MEDIUM": 3846,
+      "LOW": 365,
+      "UNKNOWN": 0,
+      "total": 4437
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.23.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.23.0",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.23.0",
+    "scanned_at": "2026-09-19T05:02:13Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 326,
+      "MEDIUM": 4629,
+      "LOW": 468,
+      "UNKNOWN": 0,
+      "total": 5448
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 219,
+      "MEDIUM": 3813,
+      "LOW": 324,
+      "UNKNOWN": 0,
+      "total": 4363
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.23.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.23.0",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.23.0",
+    "scanned_at": "2026-09-19T05:17:05Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 347,
+      "MEDIUM": 4389,
+      "LOW": 541,
+      "UNKNOWN": 0,
+      "total": 5302
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 227,
+      "MEDIUM": 3283,
+      "LOW": 378,
+      "UNKNOWN": 0,
+      "total": 3895
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.23.0-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.22.1",
+    "variant": "gpu",
+    "image": "vllm/vllm-openai:v0.22.1",
+    "scanned_at": "2026-09-19T05:21:35Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 342,
+      "MEDIUM": 4763,
+      "LOW": 550,
+      "UNKNOWN": 0,
+      "total": 5680
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 222,
+      "MEDIUM": 3852,
+      "LOW": 369,
+      "UNKNOWN": 0,
+      "total": 4450
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai:v0.22.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.22.1",
+    "variant": "cpu",
+    "image": "vllm/vllm-openai-cpu:v0.22.1",
+    "scanned_at": "2026-09-19T05:02:25Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 330,
+      "MEDIUM": 4636,
+      "LOW": 479,
+      "UNKNOWN": 0,
+      "total": 5470
+    },
+    "after": {
+      "CRITICAL": 7,
+      "HIGH": 222,
+      "MEDIUM": 3818,
+      "LOW": 328,
+      "UNKNOWN": 0,
+      "total": 4375
+    },
+    "system_upgrade_ok": true,
+    "python_upgrade_ok": true,
+    "patched_image": "ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.22.1-20260919",
+    "status": "ok"
+  },
+  {
+    "version": "v0.22.1",
+    "variant": "rocm",
+    "image": "vllm/vllm-openai-rocm:v0.22.1",
+    "scanned_at": "2026-09-19T05:21:35Z",
+    "before": {
+      "CRITICAL": 25,
+      "HIGH": 360,
+      "MEDIUM": 4524,
+      "LOW": 590,
+      "UNKNOWN": 0,
+      "total": 5499
+    },
+    "after": null,
+    "system_upgrade_ok": false,
+    "python_upgrade_ok": false,
+    "patched_image": null,
+    "status": "ok"
+  }
+]
