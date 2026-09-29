@@ -26,42 +26,42 @@ vLLM builds — functional correctness is not guaranteed.
 
 <!-- scan-summary:start -->
 
-_Last scanned: 2026-09-28T06:39:42Z_ · [Full dashboard](https://a962702.github.io/vllm-security/)
+_Last scanned: 2026-09-29T06:57:03Z_ · [Full dashboard](https://a962702.github.io/vllm-security/)
 
 | Version | Variant | Before (C/H/M/L/U) | After (C/H/M/L/U) | Status | Patched Image |
 |---|---|---|---|---|---|
-| nightly | gpu | 5/176/3592/325/0 | 5/164/3563/261/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:nightly-20260928 |
-| nightly | cpu | 6/203/4066/325/0 | 6/203/4061/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:nightly-20260928 |
-| nightly | rocm | - | - | scan_failed | - |
-| v0.30.0 | gpu | 5/179/3660/326/0 | 5/164/3563/260/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.30.0-20260928 |
-| v0.30.0 | cpu | 0/5/2/0/0 | 0/5/2/0/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.30.0-20260928 |
-| v0.30.0 | rocm | 24/323/4482/506/0 | 6/203/3491/367/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.30.0-20260928 |
-| v0.29.0 | gpu | 5/179/3778/326/0 | 5/164/3564/260/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.29.0-20260928 |
-| v0.29.0 | cpu | 6/203/4134/334/0 | 6/203/4055/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.29.0-20260928 |
-| v0.29.0 | rocm | 24/323/4519/506/0 | 6/203/3492/367/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.29.0-20260928 |
-| v0.28.0 | gpu | 5/186/3963/333/0 | 5/164/3564/260/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.28.0-20260928 |
-| v0.28.0 | cpu | 6/203/4190/340/0 | 6/203/4055/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.28.0-20260928 |
-| v0.28.0 | rocm | 24/323/4547/509/0 | 6/203/3492/367/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.28.0-20260928 |
-| v0.27.1 | gpu | 6/217/4306/428/0 | 6/201/4052/363/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.27.1-20260928 |
-| v0.27.1 | cpu | 6/206/4202/340/0 | 6/204/4058/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.27.1-20260928 |
-| v0.27.1 | rocm | 24/324/4570/518/0 | 6/204/3495/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.27.1-20260928 |
-| v0.27.0 | gpu | 6/217/4306/428/0 | 6/201/4052/363/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.27.0-20260928 |
-| v0.27.0 | cpu | 6/206/4202/340/0 | 6/204/4058/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.27.0-20260928 |
-| v0.27.0 | rocm | 24/324/4570/518/0 | 6/204/3495/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.27.0-20260928 |
-| v0.26.0 | gpu | 8/226/4331/431/0 | 6/199/4051/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.26.0-20260928 |
-| v0.26.0 | cpu | 8/215/4246/348/0 | 6/202/4059/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.26.0-20260928 |
-| v0.26.0 | rocm | 24/322/4570/518/0 | 6/202/3495/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.26.0-20260928 |
-| v0.25.1 | gpu | 11/301/4938/522/0 | 6/200/4060/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.25.1-20260928 |
-| v0.25.1 | cpu | 11/290/4857/439/0 | 6/203/4068/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.25.1-20260928 |
-| v0.25.1 | rocm | 24/333/4647/522/0 | 6/213/3507/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.25.1-20260928 |
-| v0.25.0 | gpu | 12/302/4939/522/0 | 7/201/4061/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.25.0-20260928 |
-| v0.25.0 | cpu | 12/291/4858/439/0 | 7/204/4069/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.25.0-20260928 |
-| v0.25.0 | rocm | 25/334/4648/522/0 | 7/214/3508/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.25.0-20260928 |
-| v0.24.0 | gpu | 12/317/5006/534/0 | 7/216/4064/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.24.0-20260928 |
-| v0.24.0 | cpu | 12/304/4885/461/0 | 7/216/4072/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.24.0-20260928 |
-| v0.24.0 | rocm | 25/343/4681/531/0 | 7/223/3511/378/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.24.0-20260928 |
-| v0.23.0 | gpu | 25/339/5057/542/0 | 7/219/4072/365/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.23.0-20260928 |
-| v0.23.0 | cpu | 25/326/4936/468/0 | 7/219/4080/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.23.0-20260928 |
-| v0.23.0 | rocm | 25/347/4706/541/0 | 7/227/3520/378/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.23.0-20260928 |
+| nightly | gpu | 5/176/3588/325/0 | 5/164/3559/261/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:nightly-20260929 |
+| nightly | cpu | 6/203/4061/325/0 | 6/203/4056/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:nightly-20260929 |
+| nightly | rocm | 24/323/4438/505/0 | 6/203/3486/366/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:nightly-20260929 |
+| v0.30.0 | gpu | 5/179/3660/326/0 | 5/164/3559/260/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.30.0-20260929 |
+| v0.30.0 | cpu | 0/5/2/0/0 | 0/5/2/0/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.30.0-20260929 |
+| v0.30.0 | rocm | 24/323/4479/506/0 | 6/203/3486/367/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.30.0-20260929 |
+| v0.29.0 | gpu | 5/179/3778/326/0 | 5/164/3560/260/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.29.0-20260929 |
+| v0.29.0 | cpu | 6/203/4134/334/0 | 6/203/4055/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.29.0-20260929 |
+| v0.29.0 | rocm | 24/323/4516/506/0 | 6/203/3487/367/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.29.0-20260929 |
+| v0.28.0 | gpu | 5/186/3963/333/0 | 5/164/3560/260/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.28.0-20260929 |
+| v0.28.0 | cpu | 6/203/4190/340/0 | 6/203/4055/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.28.0-20260929 |
+| v0.28.0 | rocm | 24/323/4544/509/0 | 6/203/3487/367/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.28.0-20260929 |
+| v0.27.1 | gpu | 6/217/4303/428/0 | 6/201/4047/363/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.27.1-20260929 |
+| v0.27.1 | cpu | 6/206/4202/340/0 | 6/204/4058/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.27.1-20260929 |
+| v0.27.1 | rocm | 24/324/4567/518/0 | 6/204/3490/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.27.1-20260929 |
+| v0.27.0 | gpu | 6/217/4303/428/0 | 6/201/4047/363/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.27.0-20260929 |
+| v0.27.0 | cpu | 6/206/4202/340/0 | 6/204/4058/323/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.27.0-20260929 |
+| v0.27.0 | rocm | 24/324/4567/518/0 | 6/204/3490/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.27.0-20260929 |
+| v0.26.0 | gpu | 8/226/4328/431/0 | 6/199/4046/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.26.0-20260929 |
+| v0.26.0 | cpu | 8/215/4246/348/0 | 6/202/4059/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.26.0-20260929 |
+| v0.26.0 | rocm | 24/322/4567/518/0 | 6/202/3490/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.26.0-20260929 |
+| v0.25.1 | gpu | 11/301/4935/522/0 | 6/200/4055/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.25.1-20260929 |
+| v0.25.1 | cpu | 11/290/4857/439/0 | 6/203/4068/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.25.1-20260929 |
+| v0.25.1 | rocm | 24/333/4644/522/0 | 6/213/3502/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.25.1-20260929 |
+| v0.25.0 | gpu | 12/302/4936/522/0 | 7/201/4056/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.25.0-20260929 |
+| v0.25.0 | cpu | 12/291/4858/439/0 | 7/204/4069/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.25.0-20260929 |
+| v0.25.0 | rocm | 25/334/4645/522/0 | 7/214/3503/377/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.25.0-20260929 |
+| v0.24.0 | gpu | 12/317/5003/534/0 | 7/216/4059/364/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.24.0-20260929 |
+| v0.24.0 | cpu | 12/304/4885/461/0 | 7/216/4072/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.24.0-20260929 |
+| v0.24.0 | rocm | 25/343/4678/531/0 | 7/223/3506/378/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.24.0-20260929 |
+| v0.23.0 | gpu | 25/339/5054/542/0 | 7/219/4067/365/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.23.0-20260929 |
+| v0.23.0 | cpu | 25/326/4936/468/0 | 7/219/4080/324/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.23.0-20260929 |
+| v0.23.0 | rocm | 25/347/4703/541/0 | 7/227/3515/378/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.23.0-20260929 |
 
 <!-- scan-summary:end -->
