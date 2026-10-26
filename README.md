@@ -7,8 +7,20 @@ Docker images. Each day this pipeline:
 2. Scans every published image variant (`gpu`, `cpu`, `rocm`) with
    [Trivy](https://github.com/aquasecurity/trivy) — OS packages and Python
    packages.
-3. Attempts an in-place `apt-get upgrade` + `pip install --upgrade` patch,
-   and rescans the result.
+3. Patches the image in two layers and rescans the result:
+   - OS: `apt-get upgrade`.
+   - Python (`scripts/gen_patch.py` → `scripts/patch/apply_python.py`): each
+     package Trivy reports with a fixed version is upgraded to the smallest
+     fixed version, one package at a time, with every other installed package
+     pinned to its current version (so torch & co. never move). CVEs in
+     vendored copies are fixed through the parent (setuptools → 80.10.2;
+     pip is removed when the image has uv). Known exceptions — packages built
+     from source (ROCm `lmcache`) and fixes past setuptools 81 (drops
+     `pkg_resources`) — are skipped and reported.
+   - If the Python layer fails to build, or the patched image can no longer
+     import `vllm` / `pkg_resources`, the OS-only image is published instead
+     (`python_upgrade_ok: false`). What was changed is recorded in the image at
+     `/usr/share/vllm-security/patch-result.json`.
 4. Publishes the before/after vulnerability counts and pushes patched
    images to `ghcr.io/<owner>/vllm-security/<image-name>:<version>-<scan-date>`
    (e.g. `vllm-openai`, `vllm-openai-cpu`, `vllm-openai-rocm`; scan-date is a
