@@ -252,7 +252,19 @@ def apply_env(env: dict) -> list[dict]:
     if tools is None:
         reason = "no interpreter found" if python is None else "no uv or pip available"
         return [{"name": p["name"], "status": "failed", "reason": reason} for p in env["packages"]]
-    return [upgrade(pkg, tools, python) for pkg in env["packages"]]
+    results = [upgrade(pkg, tools, python) for pkg in env["packages"]]
+
+    # A fix that failed on its own may have landed later as another target's
+    # dependent (datasets moved by the fsspec upgrade); report what's installed.
+    final = inspect_env(python)
+    for pkg, result in zip(env["packages"], results):
+        now = final.get(normalize(pkg["name"]), {}).get("version")
+        if result["status"] in ("blocked", "failed") and now \
+                and version_key(now) >= version_key(pkg["min_version"]):
+            result["reason"] = f"{result['status']} on its own ({result['reason']}); " \
+                               f"reached {now} with a later upgrade"
+            result["status"] = "upgraded"
+    return results
 
 
 def main(plan_path: str, result_path: str) -> None:
