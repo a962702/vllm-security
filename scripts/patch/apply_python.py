@@ -267,6 +267,52 @@ def apply_env(env: dict) -> list[dict]:
     return results
 
 
+def binary_version(path: str) -> str | None:
+    proc = subprocess.run([path, "--version"], capture_output=True, text=True)
+    match = re.search(r"\d+\.\d+\.\d+", proc.stdout)
+    return match.group() if proc.returncode == 0 and match else None
+
+
+def replace_uv_binaries(spec: dict) -> dict:
+    """Swap standalone uv/uvx executables for the current uv release.
+
+    The new binaries come from the uv wheel on PyPI (fetched with the image's
+    own uv into a scratch dir) and replace each file atomically; each must run
+    afterwards, else the originals are put back.
+    """
+    paths = spec["paths"]
+    result = {"name": "uv (binary)", "paths": paths}
+    uv = shutil.which("uv") or paths[0]
+    requirement = f"uv>={spec['min_version']}" if spec.get("min_version") else "uv"
+    before = {p: binary_version(p) for p in paths}
+    with tempfile.TemporaryDirectory() as scratch:
+        proc = run([uv, "pip", "install", "--no-cache", "--no-build", "--python", sys.executable,
+                    "--target", scratch, requirement])
+        if proc.returncode != 0:
+            return {**result, "status": "failed",
+                    "reason": " / ".join((proc.stderr or proc.stdout).strip().splitlines()[-3:])}
+        backups = {}
+        try:
+            for path in paths:
+                new = os.path.join(scratch, "bin", os.path.basename(path))
+                if not os.path.isfile(new):
+                    raise RuntimeError(f"{os.path.basename(path)} not in the uv wheel")
+                backups[path] = path + ".vllm-security-old"
+                shutil.copy2(path, backups[path])
+                shutil.copy2(new, path + ".vllm-security-new")
+                os.replace(path + ".vllm-security-new", path)
+                if binary_version(path) is None:
+                    raise RuntimeError(f"replaced {path} does not run")
+        except Exception as exc:  # noqa: BLE001 - restore and report whatever went wrong
+            for path, backup in backups.items():
+                os.replace(backup, path)
+            return {**result, "status": "failed", "reason": str(exc)}
+        for backup in backups.values():
+            os.unlink(backup)
+    after = {p: binary_version(p) for p in paths}
+    return {**result, "status": "upgraded", "changes": {p: [before[p], after[p]] for p in paths}}
+
+
 def main(plan_path: str, result_path: str) -> None:
     with open(plan_path, encoding="utf-8") as fh:
         plan = json.load(fh)
@@ -276,6 +322,10 @@ def main(plan_path: str, result_path: str) -> None:
         for item in apply_env(env):
             item["site_dir"] = env["site_dir"]
             result["packages"].append(item)
+
+    if plan.get("uv_binaries"):
+        result["packages"].append(replace_uv_binaries(plan["uv_binaries"]))
+    result["unhandled_binaries"] = plan.get("unhandled_binaries", [])
 
     # pip goes last: until here it may still be the fallback installer.
     if plan.get("remove_pip"):

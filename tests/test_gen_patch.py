@@ -59,7 +59,7 @@ def test_build_plan_keeps_highest_fix_per_package_and_routes_to_its_env():
 
 def test_build_plan_ignores_findings_without_fix_and_os_packages():
     report = {"Results": [
-        {"Type": "ubuntu", "Vulnerabilities": [vuln("openssl", "3.0.2", "3.0.2-1", "")]},
+        {"Type": "ubuntu", "Class": "os-pkgs", "Vulnerabilities": [vuln("openssl", "3.0.2", "3.0.2-1", "")]},
         {"Type": "python-pkg", "Vulnerabilities": [
             vuln("flash_attn", "2.8.3", "", f"{SYS_SITE}/flash_attn-2.8.3.dist-info/METADATA")]},
     ]}
@@ -147,3 +147,26 @@ def test_direct_fix_stays_within_the_fix_major_series():
     assert direct_fix("setuptools", "78.1.1")["spec"] == "setuptools>=78.1.1,<79"
     assert direct_fix("setuptools", "80.9.0")["spec"] == "setuptools>=80.9.0,<81"
     assert direct_fix("weird", "post1")["spec"] == "weird>=post1"
+
+
+def rust_result(target, *vulns):
+    return {"Target": target, "Class": "lang-pkgs", "Type": "rustbinary", "Vulnerabilities": list(vulns)}
+
+
+def test_build_plan_replaces_vulnerable_uv_binaries():
+    report = {"Results": [
+        rust_result("usr/local/bin/uv", vuln("rustls", "0.23.41", "0.23.45", ""), vuln("uv", "0.12.11", "0.12.18", "")),
+        rust_result("usr/local/bin/uvx", vuln("rustls", "0.23.41", "0.23.45", "")),
+        rust_result("usr/local/bin/clean-tool", vuln("serde", "1.0", "", "")),
+    ]}
+    plan = build_plan(report, "vllm/vllm-openai-rocm", {})
+    assert plan["uv_binaries"] == {"paths": ["/usr/local/bin/uv", "/usr/local/bin/uvx"], "min_version": "0.12.18"}
+    assert plan["unhandled_binaries"] == []
+    assert plan["envs"] == []
+
+
+def test_build_plan_reports_other_fixable_binaries_as_unhandled():
+    report = {"Results": [rust_result("opt/tool/bin/foo", vuln("tokio", "1.0", "1.1", ""))]}
+    plan = build_plan(report, "vllm/vllm-openai", {})
+    assert plan["uv_binaries"] is None
+    assert plan["unhandled_binaries"] == ["rustbinary:/opt/tool/bin/foo"]

@@ -103,6 +103,8 @@ def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict
     vendored: dict[str, set[str | None]] = {}  # parent -> site dirs holding it
     skipped: dict[str, str] = {}
 
+    binaries = standalone_binaries(report)
+
     for result in report.get("Results") or []:
         if result.get("Type") != "python-pkg":
             continue
@@ -171,6 +173,44 @@ def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict
         "remove_pip": remove_pip,
         "skipped": [{"name": n, "reason": r} for n, r in sorted(skipped.items())],
         "unhandled_vendored": unhandled,
+        **binaries,
+    }
+
+
+# Standalone executables we know how to replace, by file name (uv ships uv and
+# uvx as Rust binaries outside any Python env on the CPU and ROCm images).
+REPLACEABLE_BINARIES = {"uv": "uv", "uvx": "uv"}
+
+
+def standalone_binaries(report: dict) -> dict:
+    """Fixable findings in executables that are neither OS nor Python packages.
+
+    uv/uvx binaries are replaced with the current uv release (at least the
+    highest version fixing uv's own CVEs; bundled crates like rustls only get
+    fixed through a newer uv). Anything else is reported as unhandled.
+    """
+    uv_paths: set[str] = set()
+    uv_min: str | None = None
+    unhandled: set[str] = set()
+    for result in report.get("Results") or []:
+        if result.get("Class") == "os-pkgs" or result.get("Type") == "python-pkg":
+            continue
+        fixable = [v for v in result.get("Vulnerabilities") or [] if v.get("FixedVersion")]
+        if not fixable:
+            continue
+        target = "/" + result["Target"].lstrip("/")
+        if REPLACEABLE_BINARIES.get(target.rsplit("/", 1)[-1]) != "uv":
+            unhandled.add(f"{result.get('Type')}:{target}")
+            continue
+        uv_paths.add(target)
+        for vuln in fixable:
+            if vuln["PkgName"] == "uv":
+                want = pick_fixed_version(vuln["InstalledVersion"], vuln["FixedVersion"])
+                if uv_min is None or version_key(want) > version_key(uv_min):
+                    uv_min = want
+    return {
+        "uv_binaries": {"paths": sorted(uv_paths), "min_version": uv_min} if uv_paths else None,
+        "unhandled_binaries": sorted(unhandled),
     }
 
 
