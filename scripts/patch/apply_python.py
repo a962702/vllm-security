@@ -2,10 +2,18 @@
 
 Usage: python3 -I apply_python.py <plan.json> <result.json>
 
-Each package is installed on its own, with every other installed package pinned
-to its current version, so one unresolvable upgrade neither blocks the others
-nor drags torch & co. to new versions. Failures are recorded in the result file
-instead of failing the build; scan.sh decides what to do with them.
+Each package is upgraded on its own:
+  * protected packages (vllm, torch & co., anything not installed from an
+    index) are pinned to their installed versions and never rebuilt;
+  * the packages that depend on the target are requested along with it (at
+    their installed version or newer), so the resolver can move a family pinned
+    together (opentelemetry-api/-sdk/-proto) instead of leaving their
+    requirements broken; anything not needed stays put;
+  * nothing is built from source (--no-build / --only-binary);
+  * if the result downgrades or removes anything, or has dependency conflicts
+    that weren't there before, every changed package is put back.
+Failures are recorded in the result file instead of failing the build; only a
+rollback that doesn't restore the environment exits non-zero.
 """
 from __future__ import annotations
 
@@ -18,6 +26,16 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Core of the image: changing these needs a rebuild, not a patch.
+PROTECTED = {
+    "vllm", "torch", "torchvision", "torchaudio", "triton", "pytorch-triton-rocm",
+    "numpy", "transformers", "xformers", "flashinfer-python", "flash-attn",
+}
+
+
+class RollbackFailed(Exception):
+    pass
 
 
 def version_key(version: str) -> list:
@@ -47,15 +65,15 @@ def find_python(site_dir: str) -> str | None:
 
 
 def installer(python: str, venv: bool) -> dict[str, list[str]] | None:
-    """list / install / check commands for this interpreter: uv if present, else pip."""
+    """install / uninstall / check commands for this interpreter: uv if present, else pip."""
     extra = [] if venv else ["--break-system-packages"]
     if shutil.which("uv"):
-        return {"list": ["uv", "pip", "list", "--python", python, "--format", "json"],
-                "install": ["uv", "pip", "install", "--python", python, "--no-cache", *extra],
+        return {"install": ["uv", "pip", "install", "--python", python, "--no-cache", "--no-build", *extra],
+                "uninstall": ["uv", "pip", "uninstall", "--python", python, *extra],
                 "check": ["uv", "pip", "check", "--python", python]}
     if subprocess.run([python, "-m", "pip", "--version"], capture_output=True).returncode == 0:
-        return {"list": [python, "-m", "pip", "list", "--format", "json"],
-                "install": [python, "-m", "pip", "install", "--no-cache-dir", *extra],
+        return {"install": [python, "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", *extra],
+                "uninstall": [python, "-m", "pip", "uninstall", "-y", *extra],
                 "check": [python, "-m", "pip", "check"]}
     return None
 
@@ -66,6 +84,52 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess:
     sys.stdout.write(proc.stdout[-4000:])
     sys.stdout.write(proc.stderr[-4000:])
     return proc
+
+
+# Runs in the target interpreter: name -> version, runtime requirements, and
+# whether it was installed from somewhere other than an index (PEP 610).
+INSPECT = r"""
+import json, re, importlib.metadata as md
+out = {}
+for d in md.distributions():
+    name = d.metadata["Name"]
+    if not name or name in out:
+        continue
+    reqs = []
+    for r in d.requires or []:
+        if re.search(r"extra\s*==", r):
+            continue
+        m = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", r)
+        if m:
+            reqs.append(m.group(1))
+    out[name] = {"version": d.version, "requires": reqs,
+                 "direct_url": d.read_text("direct_url.json") is not None}
+print(json.dumps(out))
+"""
+
+
+def inspect_env(python: str) -> dict[str, dict]:
+    proc = subprocess.run([python, "-I", "-c", INSPECT], capture_output=True, text=True, check=True)
+    return {normalize(name): {**info, "requires": [normalize(r) for r in info["requires"]]}
+            for name, info in json.loads(proc.stdout).items()}
+
+
+def is_protected(name: str, info: dict) -> bool:
+    return name in PROTECTED or "+" in info["version"] or info["direct_url"]
+
+
+def dependents(target: str, meta: dict[str, dict]) -> set[str]:
+    """Unprotected packages that depend on target, directly or transitively."""
+    found: set[str] = set()
+    queue = [target]
+    while queue:
+        current = queue.pop()
+        for name, info in meta.items():
+            if current in info["requires"] and name not in found and name != target \
+                    and not is_protected(name, info):
+                found.add(name)
+                queue.append(name)
+    return found
 
 
 # `uv pip check`: "The package `opentelemetry-sdk` requires `opentelemetry-api==1.40.0`, but ..."
@@ -94,82 +158,90 @@ def dependency_issues(check_cmd: list[str]) -> dict[str, str]:
     return parse_dependency_issues(proc.stdout + proc.stderr)
 
 
-def installed_versions(list_cmd: list[str]) -> dict[str, str] | None:
-    listed = run(list_cmd)
-    if listed.returncode != 0:
-        return None
-    return {normalize(p["name"]): p["version"] for p in json.loads(listed.stdout)}
+def new_conflicts(baseline: dict[str, str], current: dict[str, str], target: str,
+                  allowed: set[str]) -> list[str]:
+    """Conflicts not present before, minus accepted ones (allowed requirer on target)."""
+    def accepted(line: str, requirer: str) -> bool:
+        return requirer in allowed and re.search(rf"[`\s]{re.escape(target)}\b", line.lower()) is not None
+    return sorted(line for line, requirer in current.items()
+                  if line not in baseline and not accepted(line, requirer))
 
 
-def install(install_cmd: list[str], installed: dict[str, str], floating: set[str],
-            requirements: list[str]) -> subprocess.CompletedProcess:
-    """Install requirements with every installed package outside `floating` pinned."""
+def version_changes(before: dict[str, dict], after: dict[str, dict]) -> dict[str, list]:
+    names = set(before) | set(after)
+    return {n: [before.get(n, {}).get("version"), after.get(n, {}).get("version")]
+            for n in sorted(names)
+            if before.get(n, {}).get("version") != after.get(n, {}).get("version")}
+
+
+def downgrades(changes: dict[str, list]) -> dict[str, list]:
+    return {n: v for n, v in changes.items()
+            if v[0] and (v[1] is None or version_key(v[1]) < version_key(v[0]))}
+
+
+def with_pins(cmd: list[str], meta: dict[str, dict], requirements: list[str]) -> subprocess.CompletedProcess:
+    """Run an install with every protected package pinned to its installed version."""
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as pins:
-        for name, version in sorted(installed.items()):
-            if name not in floating:
-                pins.write(f"{name}=={version}\n")
+        for name, info in sorted(meta.items()):
+            if is_protected(name, info):
+                pins.write(f"{name}=={info['version']}\n")
     try:
-        return run([*install_cmd, "-c", pins.name, *requirements])
+        return run([*cmd, "-c", pins.name, *requirements])
     finally:
         os.unlink(pins.name)
 
 
-MAX_ROUNDS = 3
+def rollback(tools: dict[str, list[str]], python: str, before: dict[str, dict],
+             changes: dict[str, list]) -> None:
+    restore = [f"{n}=={old}" for n, (old, _) in changes.items() if old]
+    added = [n for n, (old, _) in changes.items() if not old]
+    if restore:
+        with_pins(tools["install"], before, restore)
+    if added:
+        run([*tools["uninstall"], *added])
+    left = version_changes(before, inspect_env(python))
+    if left:
+        raise RollbackFailed(f"could not restore {left}")
 
 
-def upgrade(pkg: dict, tools: dict[str, list[str]], installed: dict[str, str]) -> dict:
-    """Upgrade one package without introducing new dependency conflicts.
-
-    When the upgrade breaks a requirement of another installed package (e.g.
-    opentelemetry-sdk pinning opentelemetry-api exactly), those dependents are
-    upgraded along with it; everything else stays pinned. If that still leaves
-    new conflicts, every package touched is put back to its original version.
-    """
+def upgrade(pkg: dict, tools: dict[str, list[str]], python: str) -> dict:
     target = normalize(pkg["name"])
-    baseline = dependency_issues(tools["check"])
-    floating = {target}
-    reason = ""
-    for _ in range(MAX_ROUNDS):
-        proc = install(tools["install"], installed, floating, [pkg["spec"], *sorted(floating - {target})])
-        if proc.returncode != 0:
-            reason = " / ".join((proc.stderr or proc.stdout).strip().splitlines()[-3:])
-            break
-        new = {line: req for line, req in dependency_issues(tools["check"]).items() if line not in baseline}
-        if not new:
-            result = {"name": pkg["name"], "status": "upgraded", "from": installed.get(target), "spec": pkg["spec"]}
-            if floating - {target}:
-                result["with_dependents"] = sorted(floating - {target})
-            return result
-        reason = "new dependency conflicts: " + " / ".join(sorted(new))
-        if set(new.values()) <= floating:
-            break
-        floating |= set(new.values())
+    before = inspect_env(python)
+    if target in before and is_protected(target, before[target]):
+        return {"name": pkg["name"], "status": "skipped", "reason": "protected package; needs a rebuild"}
+    have = before.get(target, {}).get("version")
+    if have and version_key(have) >= version_key(pkg["min_version"]):
+        return {"name": pkg["name"], "status": "already", "version": have}
 
-    originals = [f"{name}=={installed[name]}" for name in sorted(floating) if name in installed]
-    if originals:
-        install(tools["install"], installed, floating, originals)
+    baseline = dependency_issues(tools["check"])
+    # Dependents may move forward with the target, never back.
+    requests = [pkg["spec"], *(f"{n}>={before[n]['version']}" for n in sorted(dependents(target, before)))]
+    proc = with_pins(tools["install"], before, requests)
+    changes = version_changes(before, inspect_env(python))
+    down = downgrades(changes)
+    if proc.returncode != 0:
+        reason = " / ".join((proc.stderr or proc.stdout).strip().splitlines()[-3:])
+    elif down:
+        reason = "would downgrade " + ", ".join(f"{n} {old}->{new}" for n, (old, new) in down.items())
+    else:
+        conflicts = new_conflicts(baseline, dependency_issues(tools["check"]), target,
+                                  {normalize(n) for n in pkg.get("allow_conflicts_with", [])})
+        if not conflicts:
+            return {"name": pkg["name"], "status": "upgraded", "from": have, "spec": pkg["spec"],
+                    "changes": changes}
+        reason = "new dependency conflicts: " + " / ".join(conflicts)
+    if changes:
+        rollback(tools, python, before, changes)
     return {"name": pkg["name"], "status": "failed", "reason": reason}
 
 
 def apply_env(env: dict) -> list[dict]:
-    results = []
     python = find_python(env["site_dir"])
     tools = installer(python, env["venv"]) if python else None
     if tools is None:
         reason = "no interpreter found" if python is None else "no uv or pip available"
         return [{"name": p["name"], "status": "failed", "reason": reason} for p in env["packages"]]
-
-    for pkg in env["packages"]:
-        installed = installed_versions(tools["list"])
-        if installed is None:
-            results.append({"name": pkg["name"], "status": "failed", "reason": "package list failed"})
-            continue
-        have = installed.get(normalize(pkg["name"]))
-        if have and version_key(have) >= version_key(pkg["min_version"]):
-            results.append({"name": pkg["name"], "status": "already", "version": have})
-            continue
-        results.append(upgrade(pkg, tools, installed))
-    return results
+    return [upgrade(pkg, tools, python) for pkg in env["packages"]]
 
 
 def main(plan_path: str, result_path: str) -> None:

@@ -25,8 +25,11 @@ from pathlib import Path
 # satisfies vllm's CUDA build constraint setuptools<81. Newer installs are kept.
 # pip (<=26.2.2) still vendors vulnerable msgpack/urllib3/setuptools and the
 # images manage packages with uv, so pip is removed (only when uv is present).
+# vllm's own setuptools pin (<80 on CPU/ROCm) is a build-time constraint --
+# vllm doesn't import setuptools at runtime -- so that conflict is accepted.
 VENDOR_POLICY: dict[str, dict] = {
-    "setuptools": {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2"},
+    "setuptools": {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2",
+                   "allow_conflicts_with": ["vllm"]},
     "pip": {"remove": True},
 }
 
@@ -134,7 +137,7 @@ def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict
         elif policy.get("remove"):
             remove_pip = True
         else:
-            pkg = {k: policy[k] for k in ("name", "spec", "min_version")}
+            pkg = {k: v for k, v in policy.items() if k != "remove"}
             for sd in sorted(d for d in dirs if d):
                 env = next((e for e in envs if e["site_dir"] == sd), None)
                 if env is None:
