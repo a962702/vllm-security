@@ -16,7 +16,10 @@ Docker images. Each day this pipeline:
      vendored copies are fixed through the parent (setuptools → 80.10.2;
      pip is removed when the image has uv). Known exceptions — packages built
      from source (ROCm `lmcache`) and fixes past setuptools 81 (drops
-     `pkg_resources`) — are skipped and reported.
+     `pkg_resources`) — are skipped and reported. Standalone `uv`/`uvx`
+     binaries with findings (bundled rustls, uv itself) are replaced with the
+     current uv release; other fixable non-OS, non-Python binaries are
+     reported as `unhandled_binaries`.
    - If the Python layer fails to build, or the patched image can no longer
      import `vllm` / `pkg_resources`, the OS-only image is published instead
      (`python_upgrade_ok: false`). What was changed is recorded in the image at
