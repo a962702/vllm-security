@@ -30,9 +30,11 @@ Docker images. Each day this pipeline:
    UTC `YYYYMMDD` stamp).
 
 Full dashboard with historical trends: see the GitHub Pages site linked
-below once the first scan has run. The dashboard also lets you pick any of
-the last 7 scanned days and drill into the complete per-image vulnerability
-report (not just counts).
+below once the first scan has run. The dashboard lists every patched image
+with a copyable `docker pull` command, lets you pick any of the last 7
+scanned days and drill into the complete per-image vulnerability report
+(not just counts), and builds a prompt you can paste into an LLM to draft an
+impact assessment for your security team.
 
 Patched images are best-effort security-metrics artifacts, not supported
 vLLM builds — functional correctness is not guaranteed.

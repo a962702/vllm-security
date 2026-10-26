@@ -27,27 +27,157 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function formatBeforeAfter(before, after, severity) {
-  if (!before && !after) return "-";
-  const beforeVal = before ? before[severity] : "-";
-  const afterVal = after ? after[severity] : "-";
-  return `${beforeVal} → ${afterVal}`;
+// ---------- clipboard ----------
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Clipboard API needs a secure context; fall back to a hidden textarea.
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  }
 }
 
-function renderLatestTable(entries) {
-  const tbody = document.querySelector("#latest-table tbody");
-  tbody.innerHTML = "";
+// Swaps a button's label to confirm the copy, then restores it.
+function flashButton(button, ok) {
+  const label = button.dataset.label ?? button.textContent;
+  button.dataset.label = label;
+  button.textContent = ok ? "Copied" : "Copy failed";
+  button.classList.toggle("is-copied", ok);
+  clearTimeout(button._flashTimer);
+  button._flashTimer = setTimeout(() => {
+    button.textContent = label;
+    button.classList.remove("is-copied");
+  }, 1800);
+}
+
+// ---------- latest scan manifest ----------
+
+const VARIANT_LABELS = { gpu: "GPU", cpu: "CPU", rocm: "ROCm" };
+
+function variantLabel(variant) {
+  return VARIANT_LABELS[variant] ?? variant;
+}
+
+// How far the patch got, as one of the site's status stamps.
+function patchState(entry) {
+  if (entry.status !== "ok" || !entry.patched_image) {
+    return { label: entry.status === "ok" ? "Not published" : "Scan failed", tone: "remaining" };
+  }
+  if (!entry.python_patch) return { label: "OS only", tone: "new" };
+  if (entry.python_upgrade_ok === false) return { label: "Partial", tone: "new" };
+  return { label: "Patched", tone: "resolved" };
+}
+
+function patchNote(entry) {
+  const patch = entry.python_patch;
+  if (!patch) {
+    return entry.patched_image ? "Python fixes not applied; OS packages upgraded." : "";
+  }
+  const parts = [`${patch.upgraded} Python fix${patch.upgraded === 1 ? "" : "es"} applied`];
+  if (patch.blocked) parts.push(`${patch.blocked} held back by dependencies`);
+  if (patch.failed) parts.push(`${patch.failed} failed`);
+  if (patch.skipped?.length) parts.push(`skipped: ${patch.skipped.join(", ")}`);
+  return parts.join("; ") + ".";
+}
+
+function countPair(entry, key) {
+  const before = entry.before?.[key];
+  const after = entry.after?.[key];
+  if (before == null && after == null) return `<dd>-</dd>`;
+  return `<dd><span class="count-before">${before ?? "-"}</span> &rarr; <strong>${after ?? "-"}</strong></dd>`;
+}
+
+// "vllm-openai-rocm:v0.25.0-20261026" may only break after the colon.
+function formatImageRef(ref) {
+  const at = ref.lastIndexOf(":");
+  if (at < 0) return `<span class="nowrap">${escapeHtml(ref)}</span>`;
+  return `<span class="nowrap">${escapeHtml(ref.slice(0, at + 1))}</span><wbr>`
+    + `<span class="nowrap">${escapeHtml(ref.slice(at + 1))}</span>`;
+}
+
+function renderSlip(entry, registryPrefix) {
+  const state = patchState(entry);
+  const image = entry.patched_image;
+  const shortRef = image && registryPrefix && image.startsWith(registryPrefix)
+    ? image.slice(registryPrefix.length)
+    : image;
+  const pull = image
+    ? `<div class="pull">
+         <code title="${escapeHtml(image)}">${formatImageRef(shortRef)}</code>
+         <button type="button" class="copy-btn" data-copy="docker pull ${escapeHtml(image)}"
+                 aria-label="Copy docker pull command for ${escapeHtml(image)}">Copy pull</button>
+       </div>`
+    : `<p class="pull pull-missing">No patched image for this scan.</p>`;
+  const note = patchNote(entry);
+
+  return `
+    <section class="slip" data-variant="${escapeHtml(entry.variant)}">
+      <header class="slip-head">
+        <h4>${escapeHtml(variantLabel(entry.variant))}</h4>
+        <span class="stamp stamp-${state.tone}">${state.label}</span>
+      </header>
+      <dl class="slip-counts">
+        <div><dt>Critical</dt>${countPair(entry, "CRITICAL")}</div>
+        <div><dt>High</dt>${countPair(entry, "HIGH")}</div>
+        <div><dt>All</dt>${countPair(entry, "total")}</div>
+      </dl>
+      ${pull}
+      ${note ? `<p class="slip-note">${escapeHtml(note)}</p>` : ""}
+    </section>`;
+}
+
+function registryPrefixOf(entries) {
+  const image = entries.find((entry) => entry.patched_image)?.patched_image;
+  return image ? image.slice(0, image.lastIndexOf("/") + 1) : "";
+}
+
+function renderManifest(entries) {
+  const prefix = registryPrefixOf(entries);
+  document.getElementById("registry-prefix").textContent = prefix || "ghcr.io";
+
+  const byVersion = new Map();
   for (const entry of entries) {
-    const row = document.createElement("tr");
-    const cells = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"]
-      .map((severity) => `<td>${formatBeforeAfter(entry.before, entry.after, severity)}</td>`)
-      .join("");
-    row.innerHTML = `
-      <td>${entry.version}</td>
-      <td>${entry.variant}</td>
-      ${cells}
-    `;
-    tbody.appendChild(row);
+    if (!byVersion.has(entry.version)) byVersion.set(entry.version, []);
+    byVersion.get(entry.version).push(entry);
+  }
+  const versions = [...byVersion.keys()].sort(compareVersions).reverse();
+
+  document.getElementById("manifest").innerHTML = versions
+    .map((version) => `
+      <article class="manifest-row">
+        <h3 class="manifest-version">${escapeHtml(version)}</h3>
+        <div class="manifest-slips">
+          ${byVersion.get(version).map((entry) => renderSlip(entry, prefix)).join("")}
+        </div>
+      </article>`)
+    .join("");
+}
+
+function wireManifest() {
+  const manifest = document.getElementById("manifest");
+  manifest.addEventListener("click", async (event) => {
+    const button = event.target.closest(".copy-btn");
+    if (!button) return;
+    flashButton(button, await copyText(button.dataset.copy));
+  });
+
+  const chips = [...document.querySelectorAll(".filter-chip")];
+  for (const chip of chips) {
+    chip.addEventListener("click", () => {
+      for (const c of chips) c.setAttribute("aria-pressed", String(c === chip));
+      manifest.dataset.filter = chip.dataset.variant;
+    });
   }
 }
 
@@ -61,8 +191,9 @@ function compareVersions(a, b) {
     if (a === b) return 0;
     return a === "nightly" ? 1 : -1;
   }
-  const partsA = a.split(".").map(Number);
-  const partsB = b.split(".").map(Number);
+  // Release tags are "v0.32.0"; compare the numbers, not the prefix.
+  const partsA = a.replace(/^v/, "").split(".").map(Number);
+  const partsB = b.replace(/^v/, "").split(".").map(Number);
   for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
     const diff = (partsA[i] ?? 0) - (partsB[i] ?? 0);
     if (diff !== 0) return diff;
@@ -248,6 +379,144 @@ function renderMergedReportTable(rows) {
     order: [[0, "asc"]],
     pageLength: 25,
     deferRender: true,
+    autoWidth: false,
+    // Only the table scrolls sideways on narrow screens; search, length and
+    // paging stay in the panel.
+    dom: '<"report-toolbar"lf><"table-scroll"t><"report-footer"ip>',
+  });
+}
+
+// ---------- report prompt ----------
+
+const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
+
+function rawFindings(trivyReport) {
+  const rows = [];
+  for (const result of trivyReport?.Results ?? []) {
+    for (const vuln of result.Vulnerabilities ?? []) {
+      rows.push({
+        severity: vuln.Severity ?? "UNKNOWN",
+        id: vuln.VulnerabilityID ?? "-",
+        pkg: vuln.PkgName ?? "-",
+        installed: vuln.InstalledVersion ?? "-",
+        fixed: vuln.FixedVersion || "",
+        title: (vuln.Title ?? "").replace(/\s+/g, " ").trim(),
+      });
+    }
+  }
+  return rows;
+}
+
+function countBy(rows, key) {
+  const counts = new Map();
+  for (const row of rows) counts.set(row[key], (counts.get(row[key]) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function formatCounts(counts) {
+  if (!counts) return "not available";
+  return SEVERITY_ORDER.map((sev) => `${sev} ${counts[sev] ?? 0}`).join(", ");
+}
+
+// Critical/High findings are listed one per line; Medium and below are
+// summarized per package so the prompt stays within a chat-sized context.
+function buildReportPrompt({ date, version, variant, image, historyRow, summaryEntry, before, after, language }) {
+  const afterRows = rawFindings(after);
+  const beforeKeys = new Set(rawFindings(before).map((r) => `${r.id}|${r.pkg}`));
+  const afterKeys = new Set(afterRows.map((r) => `${r.id}|${r.pkg}`));
+  const resolved = [...beforeKeys].filter((key) => !afterKeys.has(key)).length;
+
+  const seen = new Set();
+  const unique = afterRows.filter((r) => {
+    const key = `${r.id}|${r.pkg}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const major = unique
+    .filter((r) => r.severity === "CRITICAL" || r.severity === "HIGH")
+    .sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)
+      || a.pkg.localeCompare(b.pkg) || a.id.localeCompare(b.id));
+  const minor = unique.filter((r) => r.severity !== "CRITICAL" && r.severity !== "HIGH");
+  const withFix = unique.filter((r) => r.fixed).length;
+
+  const patch = summaryEntry?.python_patch;
+  const patchLines = patch
+    ? [
+        `- Python packages upgraded: ${patch.upgraded}; held back because the fix conflicts with other installed packages: ${patch.blocked ?? 0}; failed: ${patch.failed}.`,
+        patch.skipped?.length ? `- Deliberately not upgraded: ${patch.skipped.join(", ")}.` : null,
+        `- pip removed from the image: ${patch.pip_removed === true ? "yes" : "no (kept)"}.`,
+      ].filter(Boolean)
+    : [];
+
+  return [
+    "You are a container security analyst. Using only the Trivy scan data below, write a vulnerability impact assessment of this container image for our security team.",
+    "",
+    "## Image",
+    `- Original image: ${image}`,
+    `- Patched image: ${historyRow?.patched_image ?? "not published for this scan"}`,
+    `- Scan date: ${date} (scanner: Trivy)`,
+    "- Workload: vLLM, an LLM inference server, run as a container on a host that provides the kernel (and GPU driver for gpu/rocm variants).",
+    "",
+    "## How the patched image was produced",
+    "- OS packages: apt-get upgrade.",
+    "- Python packages with a fixed version were upgraded to the smallest fixed version. vLLM, torch, numpy, transformers and packages built from source were kept at their shipped versions; any upgrade that would downgrade, remove or break another package's requirements was rolled back.",
+    ...patchLines,
+    "",
+    "## Finding counts (before patch -> after patch)",
+    `- Before: ${formatCounts(historyRow?.before)}`,
+    `- After: ${formatCounts(historyRow?.after)}`,
+    `- Findings resolved by the patch: ${resolved}. Remaining findings: ${unique.length}, of which ${withFix} list a fixed version.`,
+    "",
+    `## Remaining CRITICAL and HIGH findings (${major.length})`,
+    "severity | id | package | installed | fixed in | title",
+    ...major.map((r) => [r.severity, r.id, r.pkg, r.installed, r.fixed || "no fix", r.title].join(" | ")),
+    "",
+    `## Remaining MEDIUM / LOW / UNKNOWN findings by package (${minor.length})`,
+    ...countBy(minor, "pkg").map(([pkg, n]) => `- ${pkg}: ${n}`),
+    "",
+    "## What to write",
+    `Write the report in ${language}. Sections:`,
+    "1. Summary: overall risk of running this image, in a few sentences, with the key numbers.",
+    "2. What the patch fixed.",
+    "3. Remaining findings grouped by package. For each group decide whether the vulnerable code is present and reachable in this container, with a verdict of Not affected, Affected or Needs investigation, and the reasoning. Consider what the package contains (for example, linux-libc-dev only ships kernel headers; the kernel itself comes from the host), whether the component is used by an inference server, and what an attacker would need.",
+    "4. Findings that list a fixed version but remain: why they plausibly could not be applied, and what it would take.",
+    "5. Recommended actions and compensating controls, including what must be handled on the host rather than in the image.",
+    "6. Appendix: a table of every remaining CRITICAL and HIGH finding with its verdict.",
+    "",
+    "Rules: do not invent CVE details, versions or exploits that are not in the data; when the data is not enough to decide, say what must be verified and how. Mark assumptions as assumptions.",
+  ].join("\n");
+}
+
+let promptContext = null;
+
+function renderPrompt() {
+  if (!promptContext) return;
+  const language = document.getElementById("prompt-lang").value;
+  const text = buildReportPrompt({ ...promptContext, language });
+  document.getElementById("prompt-text").value = text;
+  const kb = (new Blob([text]).size / 1024).toFixed(0);
+  document.getElementById("prompt-size").textContent = `${text.split("\n").length} lines, ${kb} KB`;
+}
+
+function showPrompt(context) {
+  promptContext = context;
+  document.getElementById("prompt-target").textContent = `${context.image} (${context.date})`;
+  renderPrompt();
+  document.getElementById("prompt-block").hidden = false;
+}
+
+function wirePrompt() {
+  const lang = document.getElementById("prompt-lang");
+  const browserLang = (navigator.language || "").toLowerCase();
+  if (browserLang.startsWith("zh-cn") || browserLang.startsWith("zh-sg")) lang.value = "Simplified Chinese (zh-CN)";
+  else if (browserLang.startsWith("zh")) lang.value = "Traditional Chinese (zh-TW)";
+  else if (browserLang.startsWith("ja")) lang.value = "Japanese";
+  else lang.value = "English";
+  lang.addEventListener("change", renderPrompt);
+
+  document.getElementById("prompt-copy").addEventListener("click", async (event) => {
+    flashButton(event.currentTarget, await copyText(document.getElementById("prompt-text").value));
   });
 }
 
@@ -318,11 +587,27 @@ async function viewSelectedReport() {
   );
   renderMergedReportTable(merged);
 
+  if (after) {
+    const historyRow = reportHistory.find(
+      (row) => row.date === date && row.version === version && row.variant === variant);
+    const summaryEntry = latestSummary.find(
+      (entry) => entry.version === version && entry.variant === variant
+        && entry.patched_image && entry.patched_image === historyRow?.patched_image);
+    const image = summaryEntry?.image ?? `${variant} ${version}`;
+    showPrompt({ date, version, variant, image, historyRow, summaryEntry, before, after });
+  } else {
+    document.getElementById("prompt-block").hidden = true;
+  }
+
   statusEl.textContent = notes.length > 0 ? `Note: ${notes.join("; ")}.` : "";
   outputEl.hidden = false;
 }
 
+let reportHistory = [];
+let latestSummary = [];
+
 function wireReportControls(history) {
+  reportHistory = history;
   document.getElementById("report-date").addEventListener("change", (event) => {
     populateReportComboSelect(history, event.target.value);
   });
@@ -355,7 +640,9 @@ function wireTabs() {
 
 async function main() {
   const summary = await loadJson("results/latest/summary.json");
-  renderLatestTable(summary);
+  latestSummary = summary;
+  renderManifest(summary);
+  wireManifest();
 
   document.getElementById("updated-at").textContent =
     `Latest run: ${summary[0]?.scanned_at ?? "unknown"}`;
@@ -369,6 +656,7 @@ async function main() {
     populateReportComboSelect(history, dates[0]);
   }
   wireReportControls(history);
+  wirePrompt();
   wireTabs();
 }
 
