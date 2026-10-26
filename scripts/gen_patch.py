@@ -1,0 +1,238 @@
+"""Build a Python fix plan for a vLLM image from its Trivy report.
+
+The plan is consumed inside the image by scripts/patch/apply_python.py. OS
+packages are handled separately by scripts/patch/fix-os.sh (apt-get upgrade).
+
+Fix strategy for Python findings:
+  * a package with a fixed version -> install the smallest fixed version above
+    the installed one, into the interpreter that owns the package's site dir;
+  * a CVE in a package's vendored copy (e.g. setuptools/_vendor/wheel) -> fixed
+    through the parent package, per VENDOR_POLICY;
+  * packages listed in SKIP for the image repo are left alone.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+# Parent package -> how to fix CVEs found in its vendored copies.
+# setuptools 80.10.2 is the first release vendoring jaraco.context>=6.1.0 and
+# wheel>=0.46.2 that still ships pkg_resources (removed in 82), and it
+# satisfies vllm's CUDA build constraint setuptools<81. Newer installs are kept.
+# pip (<=26.2.2) still vendors vulnerable msgpack/urllib3/setuptools and the
+# images manage packages with uv, so pip is removed (only when uv is present).
+# vllm's own setuptools pin (<80 on CPU/ROCm) is a build-time constraint --
+# vllm doesn't import setuptools at runtime -- so that conflict is accepted.
+VENDOR_POLICY: dict[str, dict] = {
+    "setuptools": {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2",
+                   "allow_conflicts_with": ["vllm"]},
+    "pip": {"remove": True},
+}
+
+# Packages whose PyPI wheels don't match how the image built them; upgrading
+# from PyPI would break the image, so they need a source rebuild instead.
+SKIP: dict[str, dict[str, str]] = {
+    "vllm/vllm-openai-rocm": {
+        "lmcache": "built from source with hipcc for ROCm; the PyPI wheel is CUDA-only",
+    },
+}
+
+
+# Upper bounds for direct upgrades: a fix that needs a version at or above the
+# cap is skipped instead (and reported), smaller fixes are installed below it.
+# setuptools 82 drops pkg_resources, which sentry_sdk, supervisor & co. still
+# import, and vllm pins setuptools<81; the setuptools CVEs fixed only past that
+# (sdist/legacy-wheel handling) don't apply at inference time.
+CAPS: dict[str, dict] = {
+    "setuptools": {
+        "below": "81",
+        "reason": "fix needs setuptools>=81, which breaks vllm's pin and drops pkg_resources",
+        "allow_conflicts_with": ["vllm"],
+    },
+}
+
+
+def version_key(version: str) -> list:
+    parts = re.split(r"[.\-+]", version)
+    return [(0, int(p), "") if p.isdigit() else (1, 0, p) for p in parts]
+
+
+def pick_fixed_version(installed: str, fixed: str) -> str:
+    """Smallest listed fixed version above the installed one."""
+    candidates = [f.strip() for f in fixed.split(",") if f.strip()]
+    above = [c for c in candidates if version_key(c) > version_key(installed)] or candidates
+    return min(above, key=version_key)
+
+
+def site_dir(pkg_path: str) -> str | None:
+    match = re.match(r"/?(.*/(?:site|dist)-packages)/", pkg_path or "")
+    return "/" + match.group(1) if match else None
+
+
+def vendored_parent(pkg_path: str) -> str | None:
+    if not pkg_path:
+        # Findings without a path come from an embedded SBOM
+        # (pip/_vendor/*.cdx.json), i.e. pip's vendored copies.
+        return "pip"
+    if "/_vendor/" in pkg_path:
+        return pkg_path.split("/_vendor/")[0].rsplit("/", 1)[-1]
+    return None
+
+
+def direct_fix(name: str, version: str) -> dict:
+    """Fix within the fixed version's major series (and below any cap), so the
+    resolver can't pick a newer major than the fix needs."""
+    upper = str(int(re.match(r"\d+", version).group()) + 1) if re.match(r"\d+", version) else None
+    cap = CAPS.get(name)
+    if cap and (upper is None or version_key(cap["below"]) < version_key(upper)):
+        upper = cap["below"]
+    fix = {"name": name, "spec": f"{name}>={version}" + (f",<{upper}" if upper else ""), "min_version": version}
+    if cap:
+        fix["allow_conflicts_with"] = cap["allow_conflicts_with"]
+    return fix
+
+
+def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict:
+    venv = image_env.get("VIRTUAL_ENV")
+    skip = SKIP.get(image_repo, {})
+    packages: dict[str, dict[str, str]] = {}  # site dir -> name -> min version
+    vendored: dict[str, set[str | None]] = {}  # parent -> site dirs holding it
+    skipped: dict[str, str] = {}
+
+    binaries = standalone_binaries(report)
+
+    for result in report.get("Results") or []:
+        if result.get("Type") != "python-pkg":
+            continue
+        for vuln in result.get("Vulnerabilities") or []:
+            if not vuln.get("FixedVersion"):
+                continue
+            path = vuln.get("PkgPath") or ""
+            name = vuln["PkgName"]
+            parent = vendored_parent(path)
+            if name == "pip" and VENDOR_POLICY["pip"].get("remove"):
+                parent = "pip"  # pip's own CVEs: removed like its vendored ones
+            if parent:
+                vendored.setdefault(parent, set()).add(site_dir(path))
+                continue
+            if name in skip:
+                skipped[name] = skip[name]
+                continue
+            sd = site_dir(path)
+            if not sd:
+                continue
+            want = pick_fixed_version(vuln["InstalledVersion"], vuln["FixedVersion"])
+            cap = CAPS.get(name)
+            if cap and version_key(want) >= version_key(cap["below"]):
+                skipped[name] = cap["reason"]
+                continue
+            current = packages.setdefault(sd, {}).get(name)
+            if current is None or version_key(want) > version_key(current):
+                packages[sd][name] = want
+
+    envs = [
+        {
+            "site_dir": sd,
+            "venv": bool(venv and sd.startswith(venv)),
+            "packages": [direct_fix(name, version) for name, version in sorted(pkgs.items())],
+        }
+        for sd, pkgs in sorted(packages.items())
+    ]
+
+    remove_pip = False
+    unhandled: list[str] = []
+    for parent, dirs in sorted(vendored.items()):
+        policy = VENDOR_POLICY.get(parent)
+        if policy is None:
+            unhandled.append(parent)
+        elif policy.get("remove"):
+            remove_pip = True
+        else:
+            pkg = {k: v for k, v in policy.items() if k != "remove"}
+            for sd in sorted(d for d in dirs if d):
+                env = next((e for e in envs if e["site_dir"] == sd), None)
+                if env is None:
+                    env = {"site_dir": sd, "venv": bool(venv and sd.startswith(venv)), "packages": []}
+                    envs.append(env)
+                # One entry per package: the vendored fix wins when it also
+                # covers the package's own CVEs.
+                same = [p for p in env["packages"] if p["name"] == pkg["name"]]
+                if not same:
+                    env["packages"].append(pkg)
+                elif version_key(pkg["min_version"]) >= version_key(same[0]["min_version"]):
+                    env["packages"][env["packages"].index(same[0])] = pkg
+
+    return {
+        "image_repo": image_repo,
+        "virtual_env": venv,
+        "envs": envs,
+        "remove_pip": remove_pip,
+        "skipped": [{"name": n, "reason": r} for n, r in sorted(skipped.items())],
+        "unhandled_vendored": unhandled,
+        **binaries,
+    }
+
+
+# Standalone executables we know how to replace, by file name (uv ships uv and
+# uvx as Rust binaries outside any Python env on the CPU and ROCm images).
+REPLACEABLE_BINARIES = {"uv": "uv", "uvx": "uv"}
+
+
+def standalone_binaries(report: dict) -> dict:
+    """Fixable findings in executables that are neither OS nor Python packages.
+
+    uv/uvx binaries are replaced with the current uv release (at least the
+    highest version fixing uv's own CVEs; bundled crates like rustls only get
+    fixed through a newer uv). Anything else is reported as unhandled.
+    """
+    uv_paths: set[str] = set()
+    uv_min: str | None = None
+    unhandled: set[str] = set()
+    for result in report.get("Results") or []:
+        if result.get("Class") == "os-pkgs" or result.get("Type") == "python-pkg":
+            continue
+        fixable = [v for v in result.get("Vulnerabilities") or [] if v.get("FixedVersion")]
+        if not fixable:
+            continue
+        target = "/" + result["Target"].lstrip("/")
+        if REPLACEABLE_BINARIES.get(target.rsplit("/", 1)[-1]) != "uv":
+            unhandled.add(f"{result.get('Type')}:{target}")
+            continue
+        uv_paths.add(target)
+        for vuln in fixable:
+            if vuln["PkgName"] == "uv":
+                want = pick_fixed_version(vuln["InstalledVersion"], vuln["FixedVersion"])
+                if uv_min is None or version_key(want) > version_key(uv_min):
+                    uv_min = want
+    return {
+        "uv_binaries": {"paths": sorted(uv_paths), "min_version": uv_min} if uv_paths else None,
+        "unhandled_binaries": sorted(unhandled),
+    }
+
+
+def image_env(image: str) -> dict[str, str]:
+    out = subprocess.run(
+        ["docker", "image", "inspect", "--format", "{{json .Config.Env}}", image],
+        capture_output=True, text=True, check=True).stdout
+    return dict(e.split("=", 1) for e in json.loads(out) or [])
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate a Python fix plan from a Trivy report")
+    parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--image", required=True, help="local image the report was taken from")
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+
+    report = json.loads(args.report.read_text())
+    plan = build_plan(report, args.image.rsplit(":", 1)[0], image_env(args.image))
+    args.out.write_text(json.dumps(plan, indent=2))
+    print(json.dumps(plan, indent=2), file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

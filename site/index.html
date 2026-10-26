@@ -34,17 +34,17 @@
     <section class="tab-panel" id="panel-overview" role="tabpanel">
       <div class="panel-block">
         <h2>Latest Scan</h2>
-        <p class="table-note">Each severity column reads as Before &rarr; After.</p>
-        <table id="latest-table" class="ledger-table">
-          <thead>
-            <tr>
-              <th>Version</th><th>Variant</th>
-              <th title="Critical">C</th><th title="High">H</th><th title="Medium">M</th>
-              <th title="Low">L</th><th title="Unknown">U</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <p class="section-lead">
+          Counts read before &rarr; after patching. Patched images are published to
+          <code id="registry-prefix">ghcr.io</code>; copy a pull command to use one.
+        </p>
+        <div class="variant-filter" role="group" aria-label="Show variant">
+          <button type="button" class="filter-chip" data-variant="all" aria-pressed="true">All</button>
+          <button type="button" class="filter-chip" data-variant="gpu" aria-pressed="false">GPU</button>
+          <button type="button" class="filter-chip" data-variant="cpu" aria-pressed="false">CPU</button>
+          <button type="button" class="filter-chip" data-variant="rocm" aria-pressed="false">ROCm</button>
+        </div>
+        <div id="manifest" class="manifest"></div>
       </div>
 
       <div class="panel-block">
@@ -80,6 +80,31 @@
           <button id="report-view-btn" type="button" class="stamp-button">View Report</button>
         </div>
         <p id="report-status"></p>
+
+        <section id="prompt-block" class="prompt-block" hidden aria-labelledby="prompt-heading">
+          <h3 id="prompt-heading">Write it up for your security team</h3>
+          <p>
+            Paste this prompt into Claude, ChatGPT or another assistant to draft an impact
+            assessment of <strong id="prompt-target"></strong>. It carries the remaining
+            findings, how the image was patched, and asks for a verdict per finding.
+          </p>
+          <div class="prompt-actions">
+            <label for="prompt-lang">Report language</label>
+            <select id="prompt-lang">
+              <option value="Traditional Chinese (zh-TW)">繁體中文</option>
+              <option value="Simplified Chinese (zh-CN)">简体中文</option>
+              <option value="English">English</option>
+              <option value="Japanese">日本語</option>
+            </select>
+            <button id="prompt-copy" type="button" class="stamp-button">Copy prompt</button>
+            <span id="prompt-size" class="prompt-size"></span>
+          </div>
+          <details class="prompt-preview">
+            <summary>Preview prompt</summary>
+            <textarea id="prompt-text" readonly rows="18" aria-label="Prompt text"></textarea>
+          </details>
+        </section>
+
         <div id="report-output" hidden>
           <table id="report-table" class="ledger-table display" style="width:100%">
             <thead>

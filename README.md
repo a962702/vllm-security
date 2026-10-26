@@ -7,17 +7,34 @@ Docker images. Each day this pipeline:
 2. Scans every published image variant (`gpu`, `cpu`, `rocm`) with
    [Trivy](https://github.com/aquasecurity/trivy) — OS packages and Python
    packages.
-3. Attempts an in-place `apt-get upgrade` + `pip install --upgrade` patch,
-   and rescans the result.
+3. Patches the image in two layers and rescans the result:
+   - OS: `apt-get upgrade`.
+   - Python (`scripts/gen_patch.py` → `scripts/patch/apply_python.py`): each
+     package Trivy reports with a fixed version is upgraded to the smallest
+     fixed version, one package at a time, with every other installed package
+     pinned to its current version (so torch & co. never move). CVEs in
+     vendored copies are fixed through the parent (setuptools → 80.10.2;
+     pip is removed when the image has uv). Known exceptions — packages built
+     from source (ROCm `lmcache`) and fixes past setuptools 81 (drops
+     `pkg_resources`) — are skipped and reported. Standalone `uv`/`uvx`
+     binaries with findings (bundled rustls, uv itself) are replaced with the
+     current uv release; other fixable non-OS, non-Python binaries are
+     reported as `unhandled_binaries`.
+   - If the Python layer fails to build, or the patched image can no longer
+     import `vllm` / `pkg_resources`, the OS-only image is published instead
+     (`python_upgrade_ok: false`). What was changed is recorded in the image at
+     `/usr/share/vllm-security/patch-result.json`.
 4. Publishes the before/after vulnerability counts and pushes patched
    images to `ghcr.io/<owner>/vllm-security/<image-name>:<version>-<scan-date>`
    (e.g. `vllm-openai`, `vllm-openai-cpu`, `vllm-openai-rocm`; scan-date is a
    UTC `YYYYMMDD` stamp).
 
 Full dashboard with historical trends: see the GitHub Pages site linked
-below once the first scan has run. The dashboard also lets you pick any of
-the last 7 scanned days and drill into the complete per-image vulnerability
-report (not just counts).
+below once the first scan has run. The dashboard lists every patched image
+with a copyable `docker pull` command, lets you pick any of the last 7
+scanned days and drill into the complete per-image vulnerability report
+(not just counts), and builds a prompt you can paste into an LLM to draft an
+impact assessment for your security team.
 
 Patched images are best-effort security-metrics artifacts, not supported
 vLLM builds — functional correctness is not guaranteed.
