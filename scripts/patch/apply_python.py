@@ -268,7 +268,11 @@ def main(plan_path: str, result_path: str) -> None:
     # pip goes last: until here it may still be the fallback installer.
     if plan.get("remove_pip"):
         if shutil.which("uv"):
-            result["pip_removed"] = run(["bash", os.path.join(HERE, "remove-pip.sh")]).returncode == 0
+            proc = run(["bash", os.path.join(HERE, "remove-pip.sh")])
+            kept = [line[len("KEPT: "):] for line in proc.stdout.splitlines() if line.startswith("KEPT: ")]
+            result["pip_removed"] = proc.returncode == 0 and not kept
+            if kept:
+                result["pip_kept"] = kept
         else:
             result["pip_removed_skipped"] = "uv not available; pip kept as the package manager"
 
