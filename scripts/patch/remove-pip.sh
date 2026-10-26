@@ -24,5 +24,9 @@ find / -xdev -type f -regex '.*/bin/pip[0-9.]*' 2>/dev/null | while read -r f; d
     dpkg -S "$f" >/dev/null 2>&1 && continue
     if grep -q 'pip._internal\|from pip' "$f" 2>/dev/null; then echo "remove $f"; rm -f "$f"; fi
 done
-# ensurepip bundled wheels also carry vendored copies
-find / -xdev -path '*/ensurepip/_bundled/pip-*.whl' -print -delete 2>/dev/null || true
+# ensurepip bundled wheels also carry vendored copies (apt-owned ones stay
+# with their package, e.g. deadsnakes' python3.12-venv)
+find / -xdev -path '*/ensurepip/_bundled/pip-*.whl' 2>/dev/null | while read -r f; do
+    dpkg -S "$f" >/dev/null 2>&1 && { echo "skip apt-owned $f"; continue; }
+    echo "remove $f"; rm -f "$f"
+done
