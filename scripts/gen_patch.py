@@ -43,14 +43,15 @@ SKIP: dict[str, dict[str, str]] = {
 
 
 # Upper bounds for direct upgrades: a fix that needs a version at or above the
-# cap is skipped instead (and reported). setuptools 82 drops pkg_resources,
-# which sentry_sdk, supervisor & co. still import, and vllm pins setuptools<81;
-# the setuptools CVEs fixed only past that (sdist/legacy-wheel handling) don't
-# apply at inference time.
-CAPS: dict[str, dict[str, str]] = {
+# cap is skipped instead (and reported), smaller fixes are installed below it.
+# setuptools 82 drops pkg_resources, which sentry_sdk, supervisor & co. still
+# import, and vllm pins setuptools<81; the setuptools CVEs fixed only past that
+# (sdist/legacy-wheel handling) don't apply at inference time.
+CAPS: dict[str, dict] = {
     "setuptools": {
         "below": "81",
         "reason": "fix needs setuptools>=81, which breaks vllm's pin and drops pkg_resources",
+        "allow_conflicts_with": ["vllm"],
     },
 }
 
@@ -82,6 +83,19 @@ def vendored_parent(pkg_path: str) -> str | None:
     return None
 
 
+def direct_fix(name: str, version: str) -> dict:
+    """Fix within the fixed version's major series (and below any cap), so the
+    resolver can't pick a newer major than the fix needs."""
+    upper = str(int(re.match(r"\d+", version).group()) + 1) if re.match(r"\d+", version) else None
+    cap = CAPS.get(name)
+    if cap and (upper is None or version_key(cap["below"]) < version_key(upper)):
+        upper = cap["below"]
+    fix = {"name": name, "spec": f"{name}>={version}" + (f",<{upper}" if upper else ""), "min_version": version}
+    if cap:
+        fix["allow_conflicts_with"] = cap["allow_conflicts_with"]
+    return fix
+
+
 def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict:
     venv = image_env.get("VIRTUAL_ENV")
     skip = SKIP.get(image_repo, {})
@@ -98,6 +112,8 @@ def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict
             path = vuln.get("PkgPath") or ""
             name = vuln["PkgName"]
             parent = vendored_parent(path)
+            if name == "pip" and VENDOR_POLICY["pip"].get("remove"):
+                parent = "pip"  # pip's own CVEs: removed like its vendored ones
             if parent:
                 vendored.setdefault(parent, set()).add(site_dir(path))
                 continue
@@ -120,10 +136,7 @@ def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict
         {
             "site_dir": sd,
             "venv": bool(venv and sd.startswith(venv)),
-            "packages": [
-                {"name": name, "spec": f"{name}>={version}", "min_version": version}
-                for name, version in sorted(pkgs.items())
-            ],
+            "packages": [direct_fix(name, version) for name, version in sorted(pkgs.items())],
         }
         for sd, pkgs in sorted(packages.items())
     ]
@@ -143,8 +156,13 @@ def build_plan(report: dict, image_repo: str, image_env: dict[str, str]) -> dict
                 if env is None:
                     env = {"site_dir": sd, "venv": bool(venv and sd.startswith(venv)), "packages": []}
                     envs.append(env)
-                if all(p["name"] != pkg["name"] for p in env["packages"]):
+                # One entry per package: the vendored fix wins when it also
+                # covers the package's own CVEs.
+                same = [p for p in env["packages"] if p["name"] == pkg["name"]]
+                if not same:
                     env["packages"].append(pkg)
+                elif version_key(pkg["min_version"]) >= version_key(same[0]["min_version"]):
+                    env["packages"][env["packages"].index(same[0])] = pkg
 
     return {
         "image_repo": image_repo,

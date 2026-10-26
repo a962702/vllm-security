@@ -52,9 +52,9 @@ def test_build_plan_keeps_highest_fix_per_package_and_routes_to_its_env():
     envs = {e["site_dir"]: e for e in plan["envs"]}
     assert envs[VENV_SITE]["venv"] is True
     assert envs[VENV_SITE]["packages"] == [
-        {"name": "certifi", "spec": "certifi>=2026.10.19", "min_version": "2026.10.19"}]
+        {"name": "certifi", "spec": "certifi>=2026.10.19,<2027", "min_version": "2026.10.19"}]
     assert envs[SYS_SITE]["venv"] is False
-    assert envs[SYS_SITE]["packages"][0]["spec"] == "pillow>=13.0.0"
+    assert envs[SYS_SITE]["packages"][0]["spec"] == "pillow>=13.0.0,<14"
 
 
 def test_build_plan_ignores_findings_without_fix_and_os_packages():
@@ -97,7 +97,7 @@ def test_build_plan_skips_source_built_packages_for_their_repo_only():
     assert rocm["skipped"][0]["name"] == "lmcache"
 
     gpu = build_plan(report, "vllm/vllm-openai", {})
-    assert gpu["envs"][0]["packages"][0]["spec"] == "lmcache>=0.5.6"
+    assert gpu["envs"][0]["packages"][0]["spec"] == "lmcache>=0.5.6,<1"
     assert gpu["skipped"] == []
 
 
@@ -118,4 +118,32 @@ def test_build_plan_allows_setuptools_fix_below_cap():
     report = python_result(
         vuln("setuptools", "70.3.0", "78.1.1", f"{SYS_SITE}/setuptools-70.3.0.dist-info/METADATA"))
     plan = build_plan(report, "vllm/vllm-openai", {})
-    assert plan["envs"][0]["packages"][0]["spec"] == "setuptools>=78.1.1"
+    assert plan["envs"][0]["packages"] == [{
+        "name": "setuptools", "spec": "setuptools>=78.1.1,<79", "min_version": "78.1.1",
+        "allow_conflicts_with": ["vllm"]}]
+
+
+def test_build_plan_vendored_setuptools_fix_replaces_smaller_direct_fix():
+    report = python_result(
+        vuln("setuptools", "77.0.3", "78.1.1", f"{VENV_SITE}/setuptools-77.0.3.dist-info/METADATA"),
+        vuln("wheel", "0.45.1", "0.46.2", f"{VENV_SITE}/setuptools/_vendor/wheel-0.45.1.dist-info/METADATA"),
+    )
+    plan = build_plan(report, "vllm/vllm-openai-cpu", {"VIRTUAL_ENV": "/opt/venv"})
+    assert plan["envs"][0]["packages"] == [
+        {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2",
+         "allow_conflicts_with": ["vllm"]}]
+
+
+def test_build_plan_removes_pip_for_its_own_cves_instead_of_upgrading():
+    report = python_result(vuln("pip", "25.0", "25.3", f"{VENV_SITE}/pip-25.0.dist-info/METADATA"))
+    plan = build_plan(report, "vllm/vllm-openai-cpu", {"VIRTUAL_ENV": "/opt/venv"})
+    assert plan["remove_pip"] is True
+    assert plan["envs"] == []
+
+
+def test_direct_fix_stays_within_the_fix_major_series():
+    from gen_patch import direct_fix
+    assert direct_fix("multidict", "6.9.1")["spec"] == "multidict>=6.9.1,<7"
+    assert direct_fix("setuptools", "78.1.1")["spec"] == "setuptools>=78.1.1,<79"
+    assert direct_fix("setuptools", "80.9.0")["spec"] == "setuptools>=80.9.0,<81"
+    assert direct_fix("weird", "post1")["spec"] == "weird>=post1"

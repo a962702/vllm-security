@@ -19,6 +19,12 @@ now_iso() {
 
 PATCH_RESULT_PATH=/usr/share/vllm-security/patch-result.json
 
+# Disk/memory at each phase: a runner that dies mid-scan leaves no other trace.
+log_resources() {
+  echo "[resources] $1: disk $(df -h --output=avail / | tail -1 | tr -d ' ') free," \
+    "memory $(free -m | awk '/^Mem:/{print $7}')MB available"
+}
+
 # Layer 1: OS packages (apt-get upgrade).
 write_os_dockerfile() {
   local base="$1" orig_user="$2"
@@ -70,6 +76,7 @@ r = json.load(open(sys.argv[1]))
 print(json.dumps({
     "upgraded": sum(p["status"] == "upgraded" for p in r["packages"]),
     "failed": r["failed"],
+    "blocked": r.get("blocked", 0),
     "pip_removed": r["pip_removed"],
     "skipped": [s["name"] for s in r["skipped"]],
 }))' "$1"
@@ -98,12 +105,14 @@ main() {
     exit 0
   fi
 
+  log_resources "pulled"
   echo "Scanning ${IMAGE} (before)"
   if ! trivy image --scanners vuln --parallel 1 --timeout 60m --format json -o "${OUT_DIR}/${SAFE_NAME}-before.json" "${IMAGE}"; then
     write_failure_summary "scan_failed"
     exit 0
   fi
 
+  log_resources "scanned before"
   ORIG_USER="$(docker inspect --format '{{.Config.User}}' "${IMAGE}")"
   ORIG_USER="${ORIG_USER:-root}"
 
@@ -141,6 +150,7 @@ main() {
     docker tag "${OS_LOCAL_TAG}" "${PATCHED_LOCAL_TAG}"
   fi
 
+  log_resources "patched"
   if trivy image --scanners vuln --parallel 1 --timeout 60m --format json -o "${OUT_DIR}/${SAFE_NAME}-after.json" "${PATCHED_LOCAL_TAG}"; then
     PATCHED_IMAGE="$(build_patched_image_tag "${GHCR_OWNER}" "${IMAGE_NAME}" "${VERSION}" "${SCAN_DATE}")"
     docker tag "${PATCHED_LOCAL_TAG}" "${PATCHED_IMAGE}"
