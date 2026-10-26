@@ -55,9 +55,9 @@ result_file="$(mktemp)"
 cat > "${result_file}" <<'JSON'
 {"packages": [{"name": "certifi", "status": "upgraded"}, {"name": "uv", "status": "upgraded"},
               {"name": "x", "status": "failed"}, {"name": "y", "status": "already"}],
- "failed": 1, "pip_removed": true, "skipped": [{"name": "lmcache", "reason": "r"}]}
+ "failed": 1, "blocked": 2, "pip_removed": true, "skipped": [{"name": "lmcache", "reason": "r"}]}
 JSON
-assert_eq '{"upgraded": 2, "failed": 1, "pip_removed": true, "skipped": ["lmcache"]}' \
+assert_eq '{"upgraded": 2, "failed": 1, "blocked": 2, "pip_removed": true, "skipped": ["lmcache"]}' \
   "$(summarize_patch_result "${result_file}")" \
   "summarize_patch_result condenses the in-image result file"
 rm -f "${result_file}"

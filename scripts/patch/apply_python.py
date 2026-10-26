@@ -12,7 +12,7 @@ Each package is upgraded on its own:
   * nothing is built from source (--no-build / --only-binary);
   * if the result downgrades or removes anything, or has dependency conflicts
     that weren't there before, every changed package is put back.
-Failures are recorded in the result file instead of failing the build; only a
+Outcomes are recorded in the result file instead of failing the build; only a
 rollback that doesn't restore the environment exits non-zero.
 """
 from __future__ import annotations
@@ -204,7 +204,14 @@ def rollback(tools: dict[str, list[str]], python: str, before: dict[str, dict],
         raise RollbackFailed(f"could not restore {left}")
 
 
+# The fix exists but can't coexist with what the image already has (uv / pip).
+UNRESOLVABLE = re.compile(r"No solution found|ResolutionImpossible|Could not find a version that satisfies")
+
+
 def upgrade(pkg: dict, tools: dict[str, list[str]], python: str) -> dict:
+    """Upgrade one package; status is upgraded, already, skipped (protected),
+    blocked (no version set fits without breaking the image; rolled back) or
+    failed (anything else)."""
     target = normalize(pkg["name"])
     before = inspect_env(python)
     if target in before and is_protected(target, before[target]):
@@ -219,8 +226,12 @@ def upgrade(pkg: dict, tools: dict[str, list[str]], python: str) -> dict:
     proc = with_pins(tools["install"], before, requests)
     changes = version_changes(before, inspect_env(python))
     down = downgrades(changes)
+    status = "blocked"
     if proc.returncode != 0:
+        output = proc.stderr + proc.stdout
         reason = " / ".join((proc.stderr or proc.stdout).strip().splitlines()[-3:])
+        if not UNRESOLVABLE.search(output):
+            status = "failed"
     elif down:
         reason = "would downgrade " + ", ".join(f"{n} {old}->{new}" for n, (old, new) in down.items())
     else:
@@ -232,7 +243,7 @@ def upgrade(pkg: dict, tools: dict[str, list[str]], python: str) -> dict:
         reason = "new dependency conflicts: " + " / ".join(conflicts)
     if changes:
         rollback(tools, python, before, changes)
-    return {"name": pkg["name"], "status": "failed", "reason": reason}
+    return {"name": pkg["name"], "status": status, "reason": reason}
 
 
 def apply_env(env: dict) -> list[dict]:
@@ -264,6 +275,7 @@ def main(plan_path: str, result_path: str) -> None:
     for cache in ("/root/.cache/uv", "/root/.cache/pip"):
         shutil.rmtree(cache, ignore_errors=True)
     result["failed"] = sum(1 for p in result["packages"] if p["status"] == "failed")
+    result["blocked"] = sum(1 for p in result["packages"] if p["status"] == "blocked")
     os.makedirs(os.path.dirname(result_path), exist_ok=True)
     with open(result_path, "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
