@@ -80,7 +80,8 @@ def test_build_plan_fixes_vendored_copies_through_their_parent():
 
     assert plan["remove_pip"] is True
     assert plan["envs"] == [{"site_dir": VENV_SITE, "venv": True, "packages": [
-        {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2"}]}]
+        {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2",
+         "allow_conflicts_with": ["vllm"]}]}]
 
 
 def test_build_plan_reports_vendored_parents_without_policy():
@@ -109,7 +110,8 @@ def test_build_plan_caps_setuptools_and_keeps_vendored_fix():
 
     assert [s["name"] for s in plan["skipped"]] == ["setuptools"]
     assert plan["envs"][0]["packages"] == [
-        {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2"}]
+        {"name": "setuptools", "spec": "setuptools==80.10.2", "min_version": "80.10.2",
+         "allow_conflicts_with": ["vllm"]}]
 
 
 def test_build_plan_allows_setuptools_fix_below_cap():
