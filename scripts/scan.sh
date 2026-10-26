@@ -52,7 +52,17 @@ EOF
 }
 
 # Every module the original image can import must still import after patching.
-SMOKE_MODULES="vllm pkg_resources"
+# amdsmi: vllm's ROCm platform detection (needs libamd_smi from amd-smi-lib).
+SMOKE_MODULES="vllm pkg_resources amdsmi"
+
+# OS packages the Python layer removed (python3-pip itself is expected to go).
+removed_os_packages() {
+  local before="$1" after="$2"
+  comm -23 \
+    <(docker run --rm --entrypoint dpkg-query "${before}" -W -f '${Package}\n' 2>/dev/null | sort) \
+    <(docker run --rm --entrypoint dpkg-query "${after}" -W -f '${Package}\n' 2>/dev/null | sort) \
+    | grep -vx 'python3-pip' || true
+}
 
 smoke_test() {
   local base="$1" patched="$2" module
@@ -66,6 +76,15 @@ smoke_test() {
       return 1
     fi
   done
+}
+
+no_os_packages_removed() {
+  local removed
+  removed="$(removed_os_packages "$1" "$2")"
+  if [ -n "${removed}" ]; then
+    echo "Python layer removed OS packages: ${removed}"
+    return 1
+  fi
 }
 
 # Condense apply_python.py's result file into the summary's python_patch field.
@@ -139,7 +158,8 @@ main() {
   if python3 "${SCRIPT_DIR}/gen_patch.py" --report "${OUT_DIR}/${SAFE_NAME}-before.json" \
        --image "${IMAGE}" --out "${BUILD_DIR}/plan.json" \
     && docker build -f "${BUILD_DIR}/Dockerfile.python" -t "${PATCHED_LOCAL_TAG}" "${BUILD_DIR}" \
-    && smoke_test "${IMAGE}" "${PATCHED_LOCAL_TAG}"; then
+    && smoke_test "${IMAGE}" "${PATCHED_LOCAL_TAG}" \
+    && no_os_packages_removed "${OS_LOCAL_TAG}" "${PATCHED_LOCAL_TAG}"; then
     docker run --rm --entrypoint cat "${PATCHED_LOCAL_TAG}" "${PATCH_RESULT_PATH}" > "${PATCH_RESULT_FILE}"
     PATCH_SUMMARY="$(summarize_patch_result "${PATCH_RESULT_FILE}")"
     if [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["failed"])' "${PATCH_RESULT_FILE}")" = "0" ]; then
