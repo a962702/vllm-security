@@ -43,11 +43,11 @@ vLLM builds — functional correctness is not guaranteed.
 
 <!-- scan-summary:start -->
 
-_Last scanned: 2026-10-27T06:12:16Z_ · [Full dashboard](https://a962702.github.io/vllm-security/)
+_Last scanned: 2026-10-27T13:48:21Z_ · [Full dashboard](https://a962702.github.io/vllm-security/)
 
 | Version | Variant | Before (C/H/M/L/U) | After (C/H/M/L/U) | Status | Patched Image |
 |---|---|---|---|---|---|
-| nightly | gpu | 14/390/2621/829/0 | 14/372/2589/754/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:nightly-20261027 |
+| nightly | gpu | 14/390/2620/829/0 | 14/372/2589/754/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:nightly-20261027 |
 | nightly | cpu | 18/522/2446/1172/0 | 18/516/2444/1170/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:nightly-20261027 |
 | nightly | rocm | 19/523/1784/1215/0 | 19/517/1781/1214/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:nightly-20261027 |
 | v0.32.0 | gpu | 17/390/2623/829/0 | 14/372/2589/754/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.32.0-20261027 |
