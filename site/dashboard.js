@@ -418,27 +418,45 @@ function formatCounts(counts) {
   return SEVERITY_ORDER.map((sev) => `${sev} ${counts[sev] ?? 0}`).join(", ");
 }
 
-// Critical/High findings are listed one per line; Medium and below are
-// summarized per package so the prompt stays within a chat-sized context.
-function buildReportPrompt({ date, version, variant, image, historyRow, summaryEntry, before, after, language }) {
-  const afterRows = rawFindings(after);
-  const beforeKeys = new Set(rawFindings(before).map((r) => `${r.id}|${r.pkg}`));
-  const afterKeys = new Set(afterRows.map((r) => `${r.id}|${r.pkg}`));
-  const resolved = [...beforeKeys].filter((key) => !afterKeys.has(key)).length;
+const isMajor = (row) => row.severity === "CRITICAL" || row.severity === "HIGH";
 
+function uniqueFindings(rows) {
   const seen = new Set();
-  const unique = afterRows.filter((r) => {
+  return rows.filter((r) => {
     const key = `${r.id}|${r.pkg}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-  const major = unique
-    .filter((r) => r.severity === "CRITICAL" || r.severity === "HIGH")
+}
+
+function severityCounts(rows) {
+  const counts = Object.fromEntries(SEVERITY_ORDER.map((sev) => [sev, 0]));
+  for (const row of rows) counts[SEVERITY_ORDER.includes(row.severity) ? row.severity : "UNKNOWN"] += 1;
+  return counts;
+}
+
+function severitySplit(rows) {
+  const c = rows.filter((r) => r.severity === "CRITICAL").length;
+  return `${rows.length} (CRITICAL ${c}, HIGH ${rows.length - c})`;
+}
+
+// Asks the assistant for a .pptx deck assessing the image's CRITICAL/HIGH
+// findings, modelled on the team's existing assessment deck: one conclusion
+// per slide, a verdict per finding (affected / conditional / not affected)
+// and W/X/Y columns (impact, reasoning, remediation). Every remaining
+// Critical/High finding is listed; Medium and below only as a total.
+function buildReportPrompt({ date, version, variant, image, historyRow, summaryEntry, before, after, language, organization }) {
+  const beforeAll = uniqueFindings(rawFindings(before));
+  const beforeMajor = beforeAll.filter(isMajor);
+  const afterAll = uniqueFindings(rawFindings(after));
+  const afterMajor = afterAll
+    .filter(isMajor)
     .sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)
       || a.pkg.localeCompare(b.pkg) || a.id.localeCompare(b.id));
-  const minor = unique.filter((r) => r.severity !== "CRITICAL" && r.severity !== "HIGH");
-  const withFix = unique.filter((r) => r.fixed).length;
+  const afterKeys = new Set(afterMajor.map((r) => `${r.id}|${r.pkg}`));
+  const resolvedMajor = beforeMajor.filter((r) => !afterKeys.has(`${r.id}|${r.pkg}`));
+  const minorCount = afterAll.length - afterMajor.length;
 
   const patch = summaryEntry?.python_patch;
   const patchLines = patch
@@ -446,45 +464,74 @@ function buildReportPrompt({ date, version, variant, image, historyRow, summaryE
         `- Python packages upgraded: ${patch.upgraded}; held back because the fix conflicts with other installed packages: ${patch.blocked ?? 0}; failed: ${patch.failed}.`,
         patch.skipped?.length ? `- Deliberately not upgraded: ${patch.skipped.join(", ")}.` : null,
         `- pip removed from the image: ${patch.pip_removed === true ? "yes" : "no (kept)"}.`,
+        patch.pip_removed === true
+          ? "- pip ships its own vendored copies of urllib3, msgpack, setuptools, certifi and others. Findings in those copies disappear because pip was removed, so a package can show up as resolved below even when its own installed version was not upgraded (or was deliberately left alone)."
+          : null,
       ].filter(Boolean)
     : [];
+  const eyebrow = `${organization ? `${organization} ・ ` : ""}vLLM Security Assessment — Critical/High only`;
+  const month = date.slice(0, 7).replace("-", ".");
 
   return [
-    "You are a container security analyst. Using only the Trivy scan data below, write a vulnerability impact assessment of this container image for our security team.",
+    "You are a container security analyst who also builds presentation decks. Using only the Trivy scan data below, produce a PowerPoint deck (.pptx) that assesses the CRITICAL and HIGH findings of this vLLM container image for our security team.",
+    "",
+    "Deliverable: one .pptx file. If you can run code, generate the file (python-pptx or pptxgenjs) and give it to me. If you cannot create files, reply with one complete python-pptx script that writes the deck.",
     "",
     "## Image",
-    `- Original image: ${image}`,
+    `- Image: ${image} (variant: ${variant})`,
     `- Patched image: ${historyRow?.patched_image ?? "not published for this scan"}`,
     `- Scan date: ${date} (scanner: Trivy)`,
-    "- Workload: vLLM, an LLM inference server, run as a container on a host that provides the kernel (and GPU driver for gpu/rocm variants).",
+    "- Workload: vLLM, an OpenAI-compatible LLM inference server, run as a container. The host provides the kernel (and the GPU driver for gpu/rocm variants).",
     "",
     "## How the patched image was produced",
     "- OS packages: apt-get upgrade.",
     "- Python packages with a fixed version were upgraded to the smallest fixed version. vLLM, torch, numpy, transformers and packages built from source were kept at their shipped versions; any upgrade that would downgrade, remove or break another package's requirements was rolled back.",
     ...patchLines,
     "",
-    "## Finding counts (before patch -> after patch)",
-    `- Before: ${formatCounts(historyRow?.before)}`,
-    `- After: ${formatCounts(historyRow?.after)}`,
-    `- Findings resolved by the patch: ${resolved}. Remaining findings: ${unique.length}, of which ${withFix} list a fixed version.`,
+    "## Finding counts, all severities, one per (CVE, package) (original image -> patched image)",
+    `- Original: ${formatCounts(severityCounts(beforeAll))}`,
+    `- Patched: ${formatCounts(severityCounts(afterAll))}`,
+    `- CRITICAL/HIGH: ${severitySplit(beforeMajor)} -> ${severitySplit(afterMajor)}. MEDIUM and below remaining: ${minorCount} (out of scope; mention the total only).`,
     "",
-    `## Remaining CRITICAL and HIGH findings (${major.length})`,
+    `## CRITICAL/HIGH findings resolved by the patch (${resolvedMajor.length}), by package`,
+    ...(resolvedMajor.length
+      ? countBy(resolvedMajor, "pkg").map(([pkg, n]) => {
+          const ids = resolvedMajor.filter((r) => r.pkg === pkg).map((r) => r.id);
+          return `- ${pkg}: ${n} (${ids.slice(0, 8).join(", ")}${ids.length > 8 ? ", ..." : ""})`;
+        })
+      : ["- none"]),
+    "",
+    `## Remaining CRITICAL and HIGH findings in the patched image (${afterMajor.length})`,
     "severity | id | package | installed | fixed in | title",
-    ...major.map((r) => [r.severity, r.id, r.pkg, r.installed, r.fixed || "no fix", r.title].join(" | ")),
+    ...afterMajor.map((r) => [r.severity, r.id, r.pkg, r.installed, r.fixed || "no fix", r.title].join(" | ")),
     "",
-    `## Remaining MEDIUM / LOW / UNKNOWN findings by package (${minor.length})`,
-    ...countBy(minor, "pkg").map(([pkg, n]) => `- ${pkg}: ${n}`),
+    "## Verdicts",
+    "Give every remaining CRITICAL/HIGH finding exactly one verdict:",
+    "- Affected (構成影響): reachable in a typical vLLM serving deployment.",
+    "- Conditional (視設定・條件性): depends on a startup flag, an enabled feature or an exposed endpoint. Name the condition and how to check it.",
+    "- Not affected (未見可利用路徑): the vulnerable code is absent or unreachable. Say why.",
+    "Reason from what the package contains (linux-libc-dev only ships kernel headers; the kernel comes from the host), whether vLLM's serving path uses the component, and what input an attacker would need. Give one verdict per package when the reasoning is the same; break out single CVEs when it differs. Totals per verdict must add up to the remaining count on every slide.",
     "",
-    "## What to write",
-    `Write the report in ${language}. Sections:`,
-    "1. Summary: overall risk of running this image, in a few sentences, with the key numbers.",
-    "2. What the patch fixed.",
-    "3. Remaining findings grouped by package. For each group decide whether the vulnerable code is present and reachable in this container, with a verdict of Not affected, Affected or Needs investigation, and the reasoning. Consider what the package contains (for example, linux-libc-dev only ships kernel headers; the kernel itself comes from the host), whether the component is used by an inference server, and what an attacker would need.",
-    "4. Findings that list a fixed version but remain: why they plausibly could not be applied, and what it would take.",
-    "5. Recommended actions and compensating controls, including what must be handled on the host rather than in the image.",
-    "6. Appendix: a table of every remaining CRITICAL and HIGH finding with its verdict.",
+    "## Deck structure",
+    "One message per slide; each slide title states the conclusion, not the topic. Group slides into three parts and show the part in each slide's eyebrow as \"Part N ・ topic\", keeping \"Part N\" in English as in our template.",
+    `1. Cover. Eyebrow, verbatim and not translated: "${eyebrow}". Title: "vLLM ${variant.toUpperCase()} ${version} 弱點掃描" with the second line "Critical + High 影響評估" (translate both if the deck language is not Traditional Chinese). One line on the goal (how many CRITICAL/HIGH remain in the patched image and what to do about them). One line on the data source (Trivy, scan date, severity ∈ {CRITICAL, HIGH}). Date "${month}" at bottom right.`,
+    "2. Part 1, status overview. Title with the headline (how many remain and how many actually matter). A 100% horizontal bar of the three verdicts with a legend under it (count and %). Below, a category × verdict table: rows = categories that have findings (for example Linux kernel headers, other OS packages, Python packages, vLLM itself) plus a total row; columns = category, count, Affected, Conditional, Not affected, page of its detail slide. Zeros in light grey, Not affected in green, Affected in red. One line under the table naming the Affected and Conditional findings.",
+    "3. Part 1, what the patch fixed. Big before -> after CRITICAL/HIGH numbers and the resolved findings by package; one line on what was held back or skipped and why.",
+    "4. Part 2, one slide per category, biggest first. Left column: the count as a big number with its share of all remaining CRITICAL/HIGH under it (\"條 ・ 佔 C/H x%\" in Traditional Chinese), the severity split, and the verdict. Right side, three columns: Impact (W), Why it is or is not exploitable here (X), Remediation (Y), each as numbered points (01, 02, 03). For a category with several packages, use a table instead: package (count) | verdict | explanation | fixed version | CVE IDs.",
+    "5. Part 3, disposition. Three columns side by side, separated by thin vertical rules (no card fill, border or shadow; each rule ends at least 0.15 in above any text below it), each with a big number and a heading: Ignore (record in VEX / .trivyignore with the reason; the real fix is on the host), Fix / upgrade (what to upgrade and to which version), Prioritise (Affected and Conditional findings: what to confirm first, then the fix). A closing line: what is expected to remain after disposition, and that a rescan will change with new base images and advisories.",
     "",
-    "Rules: do not invent CVE details, versions or exploits that are not in the data; when the data is not enough to decide, say what must be verified and how. Mark assumptions as assumptions.",
+    "## Visual style (match it exactly)",
+    "- 16:9, 13.333 × 7.5 in, white background. No gradients, pictures, icons, shadows or decorative bars/stripes.",
+    "- Fonts: on every text run set the Latin font to IBM Plex Sans and the East Asian font to Microsoft JhengHei (in OOXML: <a:latin typeface=\"IBM Plex Sans\"/> and <a:ea typeface=\"Microsoft JhengHei\"/> in each a:rPr; python-pptx has no API for ea, so add the element). Also set the theme's major and minor fonts the same way, including the Hant script entry. PowerPoint draws CJK characters with the East Asian font only; a CJK font set as the Latin font is ignored for them.",
+    "- Colours: titles 161616; body 393939; eyebrow, captions and footer 6F6F6F; rules E0E0E0; zeros and disabled C6C6C6; light panel F4F4F4; key numbers and the primary accent 0F62FE; Affected / priority DA1E28; Not affected 229338; Conditional 8D8D8D.",
+    "- Content slides: eyebrow at (0.6 in, 0.42 in), 11 pt, \"Part N ・ topic\". Title at (0.6 in, 0.74 in), 28 pt bold, one line. Optional lead sentence under it, 11.5 pt. Content from 1.7 in down, left margin 0.6 in. Footer at 7.08 in: \"Source: …\" 8.5 pt at the left, the two-digit page number (\"03\") at the right.",
+    "- Cover: eyebrow 12 pt at the top left, title block 42 pt bold from 2.2 in, source line 12 pt under it.",
+    "- Big numbers 42-50 pt in 0F62FE (DA1E28 when they count Affected findings or the Ignore card on the disposition slide, as in our template) with a 10 pt label. Make each big-number text box at least 1.3 × its font size tall (48 pt -> 0.87 in) and start its label at least 0.1 in below the box, so the digits never touch the label. No line or rule may cross or touch text: keep 0.1 in clear around every text box. Tables as plain grids: 10.5 pt muted header row, 11 pt body, thin E0E0E0 rules, colour only on verdict numbers. Body text 10-11 pt, dense but aligned on consistent column edges; left-align text, right-align numbers.",
+    "",
+    "## Rules",
+    `- Write all slide text in ${language}. Keep CVE IDs, package names, versions, file names and commands as they are.`,
+    "- Use only the data given. Do not invent CVE details, CVSS scores, fixed versions, dates or exploits. If you look anything up, cite it in that slide's footer; otherwise write what has to be verified.",
+    "- Every number on a slide must match the counts above.",
   ].join("\n");
 }
 
@@ -493,7 +540,8 @@ let promptContext = null;
 function renderPrompt() {
   if (!promptContext) return;
   const language = document.getElementById("prompt-lang").value;
-  const text = buildReportPrompt({ ...promptContext, language });
+  const organization = document.getElementById("prompt-org").value.trim();
+  const text = buildReportPrompt({ ...promptContext, language, organization });
   document.getElementById("prompt-text").value = text;
   const kb = (new Blob([text]).size / 1024).toFixed(0);
   document.getElementById("prompt-size").textContent = `${text.split("\n").length} lines, ${kb} KB`;
@@ -514,6 +562,22 @@ function wirePrompt() {
   else if (browserLang.startsWith("ja")) lang.value = "Japanese";
   else lang.value = "English";
   lang.addEventListener("change", renderPrompt);
+
+  // The organization name only goes into the deck's cover; remember it per browser.
+  const org = document.getElementById("prompt-org");
+  try {
+    org.value = localStorage.getItem("prompt-org") ?? "";
+  } catch {
+    // storage unavailable (private mode); the field just starts empty
+  }
+  org.addEventListener("input", () => {
+    try {
+      localStorage.setItem("prompt-org", org.value.trim());
+    } catch {
+      // ignore
+    }
+    renderPrompt();
+  });
 
   document.getElementById("prompt-copy").addEventListener("click", async (event) => {
     flashButton(event.currentTarget, await copyText(document.getElementById("prompt-text").value));
