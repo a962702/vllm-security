@@ -285,3 +285,80 @@ def test_run_excludes_nightly_when_disabled(tmp_path):
     )
 
     assert not any(e["version"] == "nightly" for e in matrix)
+
+
+def _status_for(published: set[str]):
+    """Fake Docker Hub: 200 for `repo:tag` pairs in `published`, else 404."""
+    def get_status(url):
+        repo_tag = url.removeprefix("https://hub.docker.com/v2/repositories/").removesuffix("/")
+        repo, _, tag = repo_tag.partition("/tags/")
+        return 200 if f"{repo}:{tag}" in published else 404
+    return get_status
+
+
+def test_run_falls_back_to_release_name_when_tag_has_no_images(tmp_path, capsys):
+    # Upstream published the v0.33.0 Release on the v0.33.0rc3 tag (same commit);
+    # Docker images exist only as :v0.33.0.
+    releases = [
+        {"tag_name": "v0.33.0rc3", "name": "v0.33.0", "prerelease": False,
+         "published_at": "2026-11-02T10:10:05Z"},
+        {"tag_name": "v0.32.0", "name": "v0.32.0", "prerelease": False,
+         "published_at": "2026-10-18T06:50:48Z"},
+    ]
+    published = {f"{repo}:{tag}" for repo in VARIANT_REPOS.values() for tag in ("v0.33.0", "v0.32.0")}
+
+    matrix = run(
+        max_versions=10,
+        out_dir=tmp_path / "out",
+        fetch_releases_fn=lambda token: releases,
+        http_get_status_fn=_status_for(published),
+        include_nightly=False,
+    )
+
+    assert sorted({e["version"] for e in matrix}) == ["v0.32.0", "v0.33.0"]
+    assert {
+        "version": "v0.33.0", "variant": "gpu",
+        "image": "vllm/vllm-openai:v0.33.0", "image_repo": "vllm/vllm-openai",
+    } in matrix
+    assert "v0.33.0rc3" in capsys.readouterr().out
+
+
+def test_run_does_not_fall_back_to_non_version_release_name(tmp_path):
+    releases = [
+        {"tag_name": "v0.33.0rc3", "name": "Big release!", "prerelease": False,
+         "published_at": "2026-11-02T10:10:05Z"},
+    ]
+    seen_urls: list[str] = []
+
+    def get_status(url):
+        seen_urls.append(url)
+        return 404
+
+    matrix = run(
+        max_versions=10,
+        out_dir=tmp_path / "out",
+        fetch_releases_fn=lambda token: releases,
+        http_get_status_fn=get_status,
+        include_nightly=False,
+    )
+
+    assert matrix == []
+    assert not any("Big" in url for url in seen_urls)
+
+
+def test_run_warns_when_release_has_no_published_images(tmp_path, capsys):
+    releases = [
+        {"tag_name": "v0.32.0", "name": "v0.32.0", "prerelease": False,
+         "published_at": "2026-10-18T06:50:48Z"},
+    ]
+
+    matrix = run(
+        max_versions=10,
+        out_dir=tmp_path / "out",
+        fetch_releases_fn=lambda token: releases,
+        http_get_status_fn=lambda url: 404,
+        include_nightly=False,
+    )
+
+    assert matrix == []
+    assert "::warning::" in capsys.readouterr().out
