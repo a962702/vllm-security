@@ -43,13 +43,13 @@ vLLM builds — functional correctness is not guaranteed.
 
 <!-- scan-summary:start -->
 
-_Last scanned: 2026-11-13T03:37:18Z_ · [Full dashboard](https://a962702.github.io/vllm-security/)
+_Last scanned: 2026-11-13T07:40:44Z_ · [Full dashboard](https://a962702.github.io/vllm-security/)
 
 | Version | Variant | Before (C/H/M/L/U) | After (C/H/M/L/U) | Status | Patched Image |
 |---|---|---|---|---|---|
 | nightly | gpu | 5/184/1223/460/0 | 5/177/1190/409/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:nightly-20261113 |
-| nightly | cpu | 16/485/1691/1137/0 | 16/478/1689/1135/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:nightly-20261113 |
-| nightly | rocm | 19/492/2276/1197/0 | 17/479/2262/1190/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:nightly-20261113 |
+| nightly | cpu | 16/481/1690/1137/0 | 16/478/1689/1135/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:nightly-20261113 |
+| nightly | rocm | 19/491/2276/1197/0 | 17/478/2262/1190/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:nightly-20261113 |
 | v0.33.0 | gpu | 30/565/2474/1094/0 | 5/177/1190/409/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai:v0.33.0-20261113 |
 | v0.33.0 | cpu | 18/488/1705/1144/0 | 16/478/1689/1135/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-cpu:v0.33.0-20261113 |
 | v0.33.0 | rocm | 29/657/1686/1396/0 | 17/479/1021/1181/0 | ok | ghcr.io/a962702/vllm-security/vllm-openai-rocm:v0.33.0-20261113 |
