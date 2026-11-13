@@ -1,6 +1,7 @@
 """Discover vLLM release versions and which image variants exist for each."""
 from __future__ import annotations
 
+import re
 import time
 
 
@@ -17,6 +18,8 @@ VARIANT_REPOS: dict[str, str] = {
 }
 
 NIGHTLY_VERSION = "nightly"
+
+VERSION_TAG_RE = re.compile(r"v\d+\.\d+\.\d+(\.post\d+)?")
 
 
 def variant_tag_exists(repo: str, tag: str, get_status_fn, attempts: int = 3) -> bool:
@@ -94,17 +97,36 @@ def run(
 ) -> list[dict]:
     releases = fetch_releases_fn(token)
     versions = filter_releases(releases, max_versions)
+    release_names = {r["tag_name"]: r.get("name") for r in releases}
     if include_nightly:
         versions = [NIGHTLY_VERSION] + versions
 
-    tag_exists_map = {
-        version: {
-            variant: variant_tag_exists(repo, version, http_get_status_fn)
+    def check_variants(tag: str) -> dict[str, bool]:
+        return {
+            variant: variant_tag_exists(repo, tag, http_get_status_fn)
             for variant, repo in VARIANT_REPOS.items()
         }
-        for version in versions
-    }
-    matrix = build_matrix(versions, tag_exists_map)
+
+    tag_exists_map: dict[str, dict[str, bool]] = {}
+    resolved_versions: list[str] = []
+    for version in versions:
+        variants = check_variants(version)
+        if not any(variants.values()):
+            # Upstream has published a Release on the wrong tag (v0.33.0 was
+            # attached to v0.33.0rc3, same commit) while the images are pushed
+            # under the release name. Retry with the name if it is a plain
+            # version tag, so the newest release isn't silently dropped.
+            name = (release_names.get(version) or "").strip()
+            if name != version and VERSION_TAG_RE.fullmatch(name) and name not in versions:
+                name_variants = check_variants(name)
+                if any(name_variants.values()):
+                    print(f"::warning::release tag {version} has no images; using release name {name}")
+                    version, variants = name, name_variants
+        if not any(variants.values()):
+            print(f"::warning::no published image variant found for {version}; skipping")
+        tag_exists_map[version] = variants
+        resolved_versions.append(version)
+    matrix = build_matrix(resolved_versions, tag_exists_map)
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
